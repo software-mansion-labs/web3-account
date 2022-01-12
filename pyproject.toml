@@ -9,8 +9,16 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = ">=3.7.12, <3.10"
+fastapi-jsonrpc = "^2.1.6"
+uvicorn = "^0.16.0"
 
 [tool.poetry.dev-dependencies]
+poethepoet = "^0.12.0"
+pylint = "^2.12.2"
+black = "^21.12b0"
+
+[tool.poe.tasks]
+lint = "pylint server"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
