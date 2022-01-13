@@ -9,3 +9,10 @@ cp pre-commit ./.git/hooks/
 chmod +x ./.git/hooks/pre-commit
 chmod +x ./.git/hooks/pre-push
 ```
+
+## Using in metamask
+```
+poe dev
+```
+
+Use new network with url = `http://localhost:8000` and id = `11` (same as returned from `eth_chainId`). 
