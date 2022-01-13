@@ -10,6 +10,14 @@ chmod +x ./.git/hooks/pre-commit
 chmod +x ./.git/hooks/pre-push
 ```
 
+## Certificates
+
+Metamask support suggesting nodes only with https. Install `mkcert` first.
+
+```
+mkcert -key-file key.pem -cert-file cert.pem example.com *.example.com
+```
+
 ## Using in metamask
 ```
 poe dev

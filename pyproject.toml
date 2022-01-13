@@ -19,7 +19,8 @@ pylint = "^2.12.2"
 black = "^21.12b0"
 
 [tool.poe.tasks]
-dev = "uvicorn server:app --reload"
+devclient = "yarn --cwd client dev"
+devserver = "uvicorn server:app --reload --ssl-keyfile=./key.pem --ssl-certfile=./cert.pem"
 lint = "pylint server"
 format = "black ."
 

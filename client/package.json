@@ -1,0 +1,18 @@
+{
+  "scripts": {
+    "dev": "parcel index.html"
+  },
+  "dependencies": {
+    "@metamask/detect-provider": "^1.2.0",
+    "@metamask/providers": "^8.1.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "remove": "^0.1.5"
+  },
+  "devDependencies": {
+    "@metamask/types": "^1.0.0",
+    "@types/react": "^17.0.38",
+    "@types/react-dom": "^17.0.11",
+    "parcel": "^2.2.0"
+  }
+}
