@@ -1,6 +1,12 @@
 # 🐍 web3 to StarkNet json-rpc adapter
 
 # Development setup
+## Install dependencies
+```
+poetry install
+yarn --cwd client install
+```
+
 ## Git hooks
 Run this snippet to enable lint checks and automatic formatting before commit/push.
 ```
@@ -18,9 +24,15 @@ Metamask support suggesting nodes only with https. Install `mkcert` first.
 mkcert -key-file key.pem -cert-file cert.pem example.com *.example.com
 ```
 
-## Using in metamask
+## Running demo
+Run server:
 ```
-poe dev
+po devserver
 ```
 
-Use new network with url = `http://localhost:8000` and id = `11` (same as returned from `eth_chainId`). 
+Run client:
+```
+poe devclient
+```
+
+Open `http://localhost:1234/` and click "CONNECT TO METAMASK".
