@@ -89,6 +89,8 @@ export class Lib extends MetamaskClient {
         console.log("DATA", makeData(payload))
         return await this.request("eth_signTypedData_v4", this.accounts[0], JSON.stringify(makeData(payload)));
     }
+
+    sendTransaction = (transaction: string) => this.request("eth_sendRawTransaction", transaction)
 }
 
 export const getLib = async (): Promise<Lib | undefined> => {

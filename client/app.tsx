@@ -1,14 +1,16 @@
 import ReactDOM from "react-dom";
 import {useMemo, useState} from "react";
-import {getLib, Lib, makeData, typedData} from "./lib";
+import {getLib, Lib, makeData} from "./lib";
 import {Address, ecrecover, fromRpcSig} from "ethereumjs-util";
-import { getMessage } from 'eip-712';
+import {getMessage} from 'eip-712';
+import {serialize} from "@ethersproject/transactions";
 
 const padded = {display: "block", padding: 20};
 
 const recorverAddress = (signature: string, hash: Buffer) => {
     console.log({signature});
     const sig = fromRpcSig(signature);
+    console.log(sig)
     return Address.fromPublicKey(ecrecover(hash, sig.v, sig.r, sig.s));
 }
 
@@ -31,7 +33,9 @@ const App = () => {
         }
     }, [address, selector, calldata]);
 
-    const hash = payload && getMessage(makeData(payload) as any,true );
+    const hash = payload && getMessage(makeData(payload) as any, true);
+    const data = payload && getMessage(makeData(payload) as any);
+    const transaction = payload && signature && serialize({data}, signature);
 
     return <div>
         <div style={padded}>
@@ -66,7 +70,9 @@ const App = () => {
             }, null, 2)}</pre>}
         </div>
         <div style={padded}>
-            HASH
+            DATA<br/>
+            {data && <pre>{data.toString("hex")}</pre>}
+            HASH<br/>
             {payload && <pre>{hash}</pre>}
         </div>
         <div style={padded}>
@@ -75,10 +81,17 @@ const App = () => {
             </button>
         </div>
         <div style={padded}>
-            SIGNATURE
+            SIGNATURE<br/>
             {signature && <pre>{signature}</pre>}
-            RECOVERED ADDRESS
+            RECOVERED ADDRESS<br/>
             {hash && signature && <pre>{recorverAddress(signature, hash).toString()}</pre>}
+            TRANSACTION<br/>
+            {transaction && <pre>{transaction}</pre>}
+        </div>
+        <div style={padded}>
+            <button disabled={!transaction} onClick={() => lib.sendTransaction(transaction).then(console.log).catch(console.error)}>
+                SEND TRANSACTION
+            </button>
         </div>
     </div>;
 };

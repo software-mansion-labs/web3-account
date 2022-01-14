@@ -3,6 +3,7 @@
     "dev": "parcel index.html"
   },
   "dependencies": {
+    "@ethersproject/transactions": "^5.5.0",
     "@metamask/detect-provider": "^1.2.0",
     "@metamask/providers": "^8.1.1",
     "eip-712": "^0.4.3",

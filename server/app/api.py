@@ -4,6 +4,8 @@ from typing import Union
 from fastapi import FastAPI, Request, Response
 from jsonrpcserver import Result, Success, dispatch, method
 
+from server.app.deserialize import decode_raw_tx
+
 Block = Union[str, int]
 
 
@@ -59,6 +61,14 @@ def eth_getBlockByNumber(_block: Block, _full: bool) -> Result:
             "uncles": [],
         }
     )
+
+
+@method
+def eth_sendRawTransaction(transaction: str) -> str:
+    print("RECEIVED TRANSACTION", transaction)
+    print(decode_raw_tx(transaction))
+    # 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
+    return Success("0x")
 
 
 app = FastAPI()
