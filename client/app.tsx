@@ -1,8 +1,16 @@
 import ReactDOM from "react-dom";
 import {useMemo, useState} from "react";
-import {getLib, Lib} from "./lib";
+import {getLib, Lib, makeData, typedData} from "./lib";
+import {Address, ecrecover, fromRpcSig} from "ethereumjs-util";
+import { getMessage } from 'eip-712';
 
 const padded = {display: "block", padding: 20};
+
+const recorverAddress = (signature: string, hash: Buffer) => {
+    console.log({signature});
+    const sig = fromRpcSig(signature);
+    return Address.fromPublicKey(ecrecover(hash, sig.v, sig.r, sig.s));
+}
 
 const App = () => {
     const [lib, setLib] = useState<Lib>();
@@ -22,6 +30,8 @@ const App = () => {
             return undefined
         }
     }, [address, selector, calldata]);
+
+    const hash = payload && getMessage(makeData(payload) as any,true );
 
     return <div>
         <div style={padded}>
@@ -56,12 +66,19 @@ const App = () => {
             }, null, 2)}</pre>}
         </div>
         <div style={padded}>
+            HASH
+            {payload && <pre>{hash}</pre>}
+        </div>
+        <div style={padded}>
             <button disabled={!lib || !payload} onClick={() => lib.sign(payload).then(setSignature)}>
                 GENERATE SIGNATURE
             </button>
         </div>
         <div style={padded}>
+            SIGNATURE
             {signature && <pre>{signature}</pre>}
+            RECOVERED ADDRESS
+            {hash && signature && <pre>{recorverAddress(signature, hash).toString()}</pre>}
         </div>
     </div>;
 };

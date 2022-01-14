@@ -9,19 +9,13 @@ const chain = {
 
 const chainId = "0xb";
 
-const makeData = (payload: Payload): string => JSON.stringify({
+export const typedData = {
     domain: {
         chainId: chainId,
         name: 'Starknet adapter',
         version: '1',
     },
 
-    // Defining the message signing data content.
-    message: {
-        address: payload.address.toString(),
-        selector: payload.selector.toString(),
-        calldata: payload.calldata.map(v => v.toString())
-    },
     // Refers to the keys of the *types* object below.
     primaryType: 'Payload',
     types: {
@@ -35,6 +29,16 @@ const makeData = (payload: Payload): string => JSON.stringify({
             {name: 'selector', type: 'uint256'},
             {name: 'calldata', type: 'uint256[]'},
         ],
+    },
+}
+
+
+export const makeData = (payload: Payload): Record<string, any> => ({
+    ...typedData,
+    message: {
+        address: payload.address.toString(),
+        selector: payload.selector.toString(),
+        calldata: payload.calldata.map(v => v.toString())
     },
 });
 
@@ -83,7 +87,7 @@ export class Lib extends MetamaskClient {
             throw new Error("No account available");
         }
         console.log("DATA", makeData(payload))
-        return await this.request("eth_signTypedData_v4", this.accounts[0], makeData(payload));
+        return await this.request("eth_signTypedData_v4", this.accounts[0], JSON.stringify(makeData(payload)));
     }
 }
 
