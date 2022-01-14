@@ -1,10 +1,12 @@
 import ReactDOM from "react-dom";
-import {useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {getLib, Lib, makeData} from "./lib";
 import {Address, ecrecover, fromRpcSig} from "ethereumjs-util";
 import {getMessage} from 'eip-712';
 import {serialize} from "@ethersproject/transactions";
 import {toBufferBE} from "bigint-buffer";
+import {getSelectorFromName} from "starknet/utils/stark";
+import {CallContractResponse, defaultProvider, Provider} from "starknet";
 
 const padded = {display: "block", padding: 20};
 
@@ -15,12 +17,24 @@ const recorverAddress = (signature: string, hash: Buffer) => {
     return Address.fromPublicKey(ecrecover(hash, sig.v, sig.r, sig.s));
 }
 
+const fetchNonce = (accountAddress): Promise<number> =>  defaultProvider.callContract({
+    contract_address: accountAddress,
+    entry_point_selector: getSelectorFromName("get_nonce"),
+    calldata: [],
+}).then(r =>  parseInt(r.result[0]));
+
 const App = () => {
     const [lib, setLib] = useState<Lib>();
     const [address, setAddress] = useState("0x03606DB92E563E41F4A590BC01C243E8178E9BA8C980F8E464579F862DA3537C");
     const [selector, setSelector] = useState("1530486729947006463063166157847785599120665941190480211966374137237989315360");
-    const [calldata, setCalldata] = useState("1234, 11")
+    const [calldata, setCalldata] = useState("1234, 11");
+    const [accountContractAddress, _] = useState("0x6b33e3421c7dccde0cf3246bea5058c4468cffc674bab4de95c9fef43430bce");
+    const [nonce, setNonce] = useState<number | undefined>();
     const [signature, setSignature] = useState("");
+
+    useEffect(() => {
+        fetchNonce(accountContractAddress).then(v => setNonce(v));
+    },[]);
 
     const payload = useMemo(() => {
         try {
@@ -40,7 +54,7 @@ const App = () => {
         toBufferBE(payload.selector, 32),
         ...payload.calldata.map(v => toBufferBE(v, 32)),
     ]);
-    const transaction = payload && signature && serialize({data: transactionData}, signature);
+    const transaction = payload && signature && nonce !== undefined && serialize({ data: transactionData, nonce }, signature);
 
     return <div>
         <div style={padded}>
@@ -66,6 +80,14 @@ const App = () => {
                 Calldata
                 <input style={{display: "block"}} onChange={e => setCalldata(e.target.value)} value={calldata}/>
             </label>
+            <label style={padded}>
+                Account contract address
+                <input style={{display: "block"}} value={accountContractAddress} disabled/>
+            </label>
+            <label style={padded}>
+                Nonce
+                <input style={{display: "block"}} value={nonce === undefined ? "loading..." : nonce} disabled/>
+            </label>
         </div>
         <div style={padded}>
             {payload && <pre>PAYLOAD {JSON.stringify({
@@ -73,6 +95,9 @@ const App = () => {
                 selector: payload.selector.toString(),
                 calldata: payload.calldata.toString(),
             }, null, 2)}</pre>}
+        </div>
+        <div style={padded}>
+            {nonce !== undefined && <>NONCE:<br/><pre>{nonce}</pre></>}
         </div>
         <div style={padded}>
             DATA<br/>

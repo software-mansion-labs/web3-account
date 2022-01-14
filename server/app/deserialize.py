@@ -38,6 +38,7 @@ class DecodedTx:
     call_info: StarknetCallInfo
     from_address: str
     hash_tx: str
+    nonce: str
 
 
 def hex_to_bytes(data: str) -> bytes:
@@ -71,4 +72,5 @@ def decode_raw_tx(raw_tx: str):
         call_info=get_data(tx.data),
         hash_tx=hash_tx,
         from_address=from_address,
+        nonce=tx.nonce,
     )
