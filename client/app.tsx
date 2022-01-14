@@ -4,6 +4,7 @@ import {getLib, Lib, makeData} from "./lib";
 import {Address, ecrecover, fromRpcSig} from "ethereumjs-util";
 import {getMessage} from 'eip-712';
 import {serialize} from "@ethersproject/transactions";
+import {toBufferBE} from "bigint-buffer";
 
 const padded = {display: "block", padding: 20};
 
@@ -34,8 +35,12 @@ const App = () => {
     }, [address, selector, calldata]);
 
     const hash = payload && getMessage(makeData(payload) as any, true);
-    const data = payload && getMessage(makeData(payload) as any);
-    const transaction = payload && signature && serialize({data}, signature);
+    const transactionData = payload && Buffer.concat([
+        toBufferBE(payload.address,32),
+        toBufferBE(payload.selector, 32),
+        ...payload.calldata.map(v => toBufferBE(v, 32)),
+    ]);
+    const transaction = payload && signature && serialize({data: transactionData}, signature);
 
     return <div>
         <div style={padded}>
@@ -71,9 +76,7 @@ const App = () => {
         </div>
         <div style={padded}>
             DATA<br/>
-            {data && <pre>{data.toString("hex")}</pre>}
-            HASH<br/>
-            {payload && <pre>{hash}</pre>}
+            {transactionData && <pre>{transactionData.toString("hex")}</pre>}
         </div>
         <div style={padded}>
             <button disabled={!lib || !payload} onClick={() => lib.sign(payload).then(setSignature)}>

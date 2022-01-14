@@ -1,6 +1,6 @@
 # pylint: skip-file
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, NamedTuple
 
 import rlp
 from eth_account._utils.signing import to_standard_v
@@ -27,24 +27,29 @@ class Transaction(rlp.Serializable):
     ]
 
 
+class StarknetCallInfo(NamedTuple):
+    address: int
+    selector: int
+    calldata: List[int]
+
+
 @dataclass
 class DecodedTx:
+    call_info: StarknetCallInfo
+    from_address: str
     hash_tx: str
-    from_: str
-    to: Optional[str]
-    nonce: int
-    gas: int
-    gas_price: int
-    value: int
-    data: str
-    chain_id: int
-    r: str
-    s: str
-    v: int
 
 
 def hex_to_bytes(data: str) -> bytes:
     return to_bytes(hexstr=HexStr(data))
+
+
+def get_data(value: bytes) -> StarknetCallInfo:
+    parsed = []
+    for i in range(0, len(value), 32):
+        parsed.append(int.from_bytes(value[i : i + 32], "big"))
+
+    return StarknetCallInfo(parsed[0], parsed[1], parsed[2:])
 
 
 def decode_raw_tx(raw_tx: str):
@@ -56,23 +61,14 @@ def decode_raw_tx(raw_tx: str):
         .recover_public_key_from_msg_hash(hash)
         .to_checksum_address()
     )
-    to = w3.toChecksumAddress(tx.to) if tx.to else None
-    data = w3.toHex(tx.data)
-    r = hex(tx.r)
-    s = hex(tx.s)
-    chain_id = (tx.v - 35) // 2 if tx.v % 2 else (tx.v - 36) // 2
+    # to = w3.toChecksumAddress(tx.to) if tx.to else None
+    # data = w3.toHex(tx.data)
+    # r = hex(tx.r)
+    # s = hex(tx.s)
+    # chain_id = (tx.v - 35) // 2 if tx.v % 2 else (tx.v - 36) // 2
 
     return DecodedTx(
-        hash_tx,
-        from_address,
-        to,
-        tx.nonce,
-        tx.gas,
-        tx.gas_price,
-        tx.value,
-        data,
-        chain_id,
-        r,
-        s,
-        tx.v,
+        call_info=get_data(tx.data),
+        hash_tx=hash_tx,
+        from_address=from_address,
     )
