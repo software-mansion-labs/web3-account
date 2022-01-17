@@ -45,7 +45,7 @@ poe devclient
 
 You can run interactive python shell with `account` and `erc20` available: 
 ```
-poetry run python -i contracts/interactive.py ETH_ADDRESS
+PYTHONPATH=$PWD poetry run python -i contracts/interactive.py ETH_ADDRESS
 ```
 
 

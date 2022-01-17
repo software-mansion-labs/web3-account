@@ -77,12 +77,14 @@ async def eth_sendRawTransaction(transaction: str) -> str:
     print("target address", sn_eth_address)
     client = Client(net=NODE_URL, chain=StarknetChainId.TESTNET)
     contract = await Contract.from_address(sn_eth_address, client=client)
-    result = await contract.functions["execute"].invoke(
+    prepared = contract.functions["execute"].prepare(
         to=decoded.call_info.address,
         selector=decoded.call_info.selector,
         calldata=decoded.call_info.calldata,
         nonce=decoded.call_info.nonce,
     )
+    print("CALLDATA", prepared.calldata)
+    result = await prepared.invoke([0])
 
     print("CALL RESULT", result)
 
