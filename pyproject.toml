@@ -13,17 +13,32 @@ uvicorn = "^0.16.0"
 jsonrpcserver = "^5.0.5"
 fastapi = "^0.71.0"
 web3 = "^5.26.0"
+"starknet.py" = "^0.1.5-alpha.0"
 
 [tool.poetry.dev-dependencies]
 poethepoet = "^0.12.0"
 pylint = "^2.12.2"
 black = "^21.12b0"
+starknet-devnet = "^0.1.12"
 
 [tool.poe.tasks]
 devclient = "yarn --cwd client dev"
 devserver = "uvicorn server:app --reload --ssl-keyfile=./key.pem --ssl-certfile=./cert.pem"
 lint = "pylint server"
 format = "black ."
+[tool.poe.tasks.devnet]
+shell = """
+    trap "exit" INT TERM
+    trap "kill 0" EXIT
+    starknet-devnet --host localhost --port 5000 &
+    DEVNET_PID=$!
+    sleep 1
+    python contracts/setup.py $eth_address
+    wait $DEVNET_PID
+"""
+args = [
+    { name = "eth_address", required = true },
+]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

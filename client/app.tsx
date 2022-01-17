@@ -104,6 +104,10 @@ const App = () => {
             {transactionData && <pre>{transactionData.toString("hex")}</pre>}
         </div>
         <div style={padded}>
+            DATA HASH<br/>
+            <pre>{hash}</pre>
+        </div>
+        <div style={padded}>
             <button disabled={!lib || !payload} onClick={() => lib.sign(payload).then(setSignature)}>
                 GENERATE SIGNATURE
             </button>

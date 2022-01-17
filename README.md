@@ -7,6 +7,9 @@ poetry install
 yarn --cwd client install
 ```
 
+## Setup envs
+Setup envs as showed in `.env.example`.
+
 ## Git hooks
 Run this snippet to enable lint checks and automatic formatting before commit/push.
 ```
@@ -25,6 +28,11 @@ mkcert -key-file key.pem -cert-file cert.pem example.com *.example.com
 ```
 
 ## Running demo
+Run dev network & setup contracts:
+``
+poe devnet --eth_address YOUR_ETH_ADDRESS
+``
+
 Run server:
 ```
 po devserver
@@ -34,5 +42,6 @@ Run client:
 ```
 poe devclient
 ```
+
 
 Open `http://localhost:1234/` and click "CONNECT TO METAMASK".

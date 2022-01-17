@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request, Response
 from jsonrpcserver import Result, Success, dispatch, method
 
 from server.app.deserialize import decode_raw_tx
+from server.app.starknet import compute_eth_account_address
 
 Block = Union[str, int]
 
@@ -66,7 +67,10 @@ def eth_getBlockByNumber(_block: Block, _full: bool) -> Result:
 @method
 def eth_sendRawTransaction(transaction: str) -> str:
     print("RECEIVED TRANSACTION", transaction)
-    print(decode_raw_tx(transaction))
+    decoded = decode_raw_tx(transaction)
+    print(decoded)
+    sn_eth_address = compute_eth_account_address(decoded.from_address)
+    print("target address", sn_eth_address)
     # 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
     return Success("0x")
 

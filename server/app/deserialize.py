@@ -57,6 +57,8 @@ def decode_raw_tx(raw_tx: str):
     tx = rlp.decode(hex_to_bytes(raw_tx), Transaction)
     hash_tx = Web3.toHex(keccak(hex_to_bytes(raw_tx)))
     hash = HexBytes(keccak(tx.data))
+    print("DATA", tx.data.hex())
+    print("HASH", hash.hex())
     from_address = (
         Signature(vrs=(to_standard_v(tx.v), tx.r, tx.s))
         .recover_public_key_from_msg_hash(hash)
