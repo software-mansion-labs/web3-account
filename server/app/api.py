@@ -2,41 +2,45 @@
 from typing import Union
 
 from fastapi import FastAPI, Request, Response
-from jsonrpcserver import Result, Success, dispatch, method
+from jsonrpcserver import Result, Success, async_dispatch, method
+from starknet_py.contract import Contract
+from starknet_py.net import Client
+from starknet_py.net.models import StarknetChainId
 
 from server.app.deserialize import decode_raw_tx
+from server.app.settings import NODE_URL
 from server.app.starknet import compute_eth_account_address
 
 Block = Union[str, int]
 
 
 @method
-def eth_chainId() -> Result:
+async def eth_chainId() -> Result:
     return Success("0xb")
 
 
 @method
-def net_version() -> Result:
+async def net_version() -> Result:
     return Success("3")
 
 
 @method
-def eth_blockNumber() -> Result:
+async def eth_blockNumber() -> Result:
     return Success("0x1b4")
 
 
 @method
-def eth_gasPrice() -> Result:
+async def eth_gasPrice() -> Result:
     return Success("0x0")
 
 
 @method
-def eth_getBalance(_address: str, _block: Block) -> Result:
+async def eth_getBalance(_address: str, _block: Block) -> Result:
     return Success("0xc94")
 
 
 @method
-def eth_getBlockByNumber(_block: Block, _full: bool) -> Result:
+async def eth_getBlockByNumber(_block: Block, _full: bool) -> Result:
     return Success(
         {
             "number": "0x1b4",
@@ -65,14 +69,27 @@ def eth_getBlockByNumber(_block: Block, _full: bool) -> Result:
 
 
 @method
-def eth_sendRawTransaction(transaction: str) -> str:
+async def eth_sendRawTransaction(transaction: str) -> str:
     print("RECEIVED TRANSACTION", transaction)
     decoded = decode_raw_tx(transaction)
     print(decoded)
     sn_eth_address = compute_eth_account_address(decoded.from_address)
     print("target address", sn_eth_address)
+    client = Client(net=NODE_URL, chain=StarknetChainId.TESTNET)
+    contract = await Contract.from_address(sn_eth_address, client=client)
+    result = await contract.functions["execute"].invoke(
+        to=decoded.call_info.address,
+        selector=decoded.call_info.selector,
+        calldata=decoded.call_info.calldata,
+        nonce=decoded.call_info.nonce,
+    )
+
+    print("CALL RESULT", result)
+
+    await result.wait_for_acceptance()
+
     # 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
-    return Success("0x")
+    return Success(result.hash)
 
 
 app = FastAPI()
@@ -80,4 +97,4 @@ app = FastAPI()
 
 @app.post("/")
 async def index(request: Request):
-    return Response(dispatch(await request.body()))
+    return Response(await async_dispatch(await request.body()))

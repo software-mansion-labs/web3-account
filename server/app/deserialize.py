@@ -10,7 +10,6 @@ from eth_utils import keccak, to_bytes
 from hexbytes import HexBytes
 from rlp.sedes import Binary, big_endian_int, binary
 from web3 import Web3
-from web3.auto import w3
 
 from server.app.eip712 import to_message_hash
 
@@ -75,11 +74,6 @@ def decode_raw_tx(raw_tx: str):
         .recover_public_key_from_msg_hash(hash)
         .to_checksum_address()
     )
-    # to = w3.toChecksumAddress(tx.to) if tx.to else None
-    # data = w3.toHex(tx.data)
-    # r = hex(tx.r)
-    # s = hex(tx.s)
-    # chain_id = (tx.v - 35) // 2 if tx.v % 2 else (tx.v - 36) // 2
 
     return DecodedTx(
         call_info=data,

@@ -5,6 +5,7 @@ from pathlib import Path
 from starknet_py.contract import Contract
 from starknet_py.net import Client
 from starknet_py.net.models import StarknetChainId
+from starkware.starknet.public.abi import get_selector_from_name
 
 if __name__ != "__main__":
     raise Exception("Not run as a script")
@@ -42,3 +43,4 @@ erc20 = Contract.deploy_sync(
     salt=ACCOUNT_ADDRESS_SALT,
 )
 print("ERC20 ADDRESS:", erc20.address)
+print("ERC20 ADDRESS TRANSFER SELECTOR", get_selector_from_name("transfer"))

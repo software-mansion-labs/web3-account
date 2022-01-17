@@ -26,8 +26,8 @@ const fetchNonce = (accountAddress): Promise<number> =>  defaultProvider.callCon
 const App = () => {
     const [lib, setLib] = useState<Lib>();
     const [address, setAddress] = useState("0x03606DB92E563E41F4A590BC01C243E8178E9BA8C980F8E464579F862DA3537C");
-    const [selector, setSelector] = useState("1530486729947006463063166157847785599120665941190480211966374137237989315360");
-    const [calldata, setCalldata] = useState("1234, 11");
+    const [selector, setSelector] = useState("232670485425082704932579856502088130646006032362877466777181098476241604910");
+    const [calldata, setCalldata] = useState("1111");
     const [accountContractAddress, _] = useState("0x6b33e3421c7dccde0cf3246bea5058c4468cffc674bab4de95c9fef43430bce");
     const [nonce, setNonce] = useState<number | undefined>(0);
     const [signature, setSignature] = useState("");

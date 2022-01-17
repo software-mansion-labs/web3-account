@@ -43,5 +43,10 @@ Run client:
 poe devclient
 ```
 
+You can run interactive python shell with `account` and `erc20` available: 
+```
+poetry run python -i contracts/interactive.py ETH_ADDRESS
+```
+
 
 Open `http://localhost:1234/` and click "CONNECT TO METAMASK".
