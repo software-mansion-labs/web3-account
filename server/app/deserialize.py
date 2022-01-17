@@ -12,6 +12,8 @@ from rlp.sedes import Binary, big_endian_int, binary
 from web3 import Web3
 from web3.auto import w3
 
+from server.app.eip712 import to_message_hash
+
 
 class Transaction(rlp.Serializable):
     fields = [
@@ -28,6 +30,7 @@ class Transaction(rlp.Serializable):
 
 
 class StarknetCallInfo(NamedTuple):
+    nonce: int
     address: int
     selector: int
     calldata: List[int]
@@ -45,18 +48,26 @@ def hex_to_bytes(data: str) -> bytes:
     return to_bytes(hexstr=HexStr(data))
 
 
-def get_data(value: bytes) -> StarknetCallInfo:
+def get_data(nonce: int, value: bytes) -> StarknetCallInfo:
     parsed = []
     for i in range(0, len(value), 32):
         parsed.append(int.from_bytes(value[i : i + 32], "big"))
 
-    return StarknetCallInfo(parsed[0], parsed[1], parsed[2:])
+    return StarknetCallInfo(nonce, parsed[0], parsed[1], parsed[2:])
 
 
 def decode_raw_tx(raw_tx: str):
     tx = rlp.decode(hex_to_bytes(raw_tx), Transaction)
     hash_tx = Web3.toHex(keccak(hex_to_bytes(raw_tx)))
-    hash = HexBytes(keccak(tx.data))
+    data = get_data(tx.nonce, tx.data)
+    hash = HexBytes(
+        to_message_hash(
+            nonce=data.nonce,
+            address=data.address,
+            selector=data.selector,
+            calldata=data.calldata,
+        )
+    )
     print("DATA", tx.data.hex())
     print("HASH", hash.hex())
     from_address = (
@@ -71,7 +82,7 @@ def decode_raw_tx(raw_tx: str):
     # chain_id = (tx.v - 35) // 2 if tx.v % 2 else (tx.v - 36) // 2
 
     return DecodedTx(
-        call_info=get_data(tx.data),
+        call_info=data,
         hash_tx=hash_tx,
         from_address=from_address,
         nonce=tx.nonce,

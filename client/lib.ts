@@ -1,5 +1,6 @@
 import detectEthereumProvider = require("@metamask/detect-provider");
 import {MetaMaskInpageProvider} from "@metamask/providers";
+import {getStructHash} from "eip-712";
 
 const chain = {
     chainId: "0xb",
@@ -25,6 +26,7 @@ export const typedData = {
             {name: 'chainId', type: 'uint256'},
         ],
         Payload: [
+            {name: 'nonce', type: 'uint256'},
             {name: 'address', type: 'uint256'},
             {name: 'selector', type: 'uint256'},
             {name: 'calldata', type: 'uint256[]'},
@@ -36,6 +38,7 @@ export const typedData = {
 export const makeData = (payload: Payload): Record<string, any> => ({
     ...typedData,
     message: {
+        nonce: payload.nonce.toString(),
         address: payload.address.toString(),
         selector: payload.selector.toString(),
         calldata: payload.calldata.map(v => v.toString())
@@ -43,10 +46,23 @@ export const makeData = (payload: Payload): Record<string, any> => ({
 });
 
 interface Payload {
+    nonce: bigint;
     address: bigint;
     selector: bigint;
     calldata: bigint[];
 }
+// function bufferToHex (buffer) {
+//     return [...new Uint8Array (buffer)]
+//         .map (b => b.toString (16).padStart (2, "0"))
+//         .join ("");
+// }
+//
+// console.log("PAYLOAD", bufferToHex(getStructHash({...typedData, message: {}}, "Payload", {
+//     nonce: "0",
+//     address: "1527313146790301463986275421344872471267849035609999779125866589010379625340",
+//     selector: "1530486729947006463063166157847785599120665941190480211966374137237989315360",
+//     calldata: ["1234", "11"],
+// })))
 
 class MetamaskClient {
     constructor(protected provider: MetaMaskInpageProvider) {

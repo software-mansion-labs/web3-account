@@ -29,7 +29,7 @@ const App = () => {
     const [selector, setSelector] = useState("1530486729947006463063166157847785599120665941190480211966374137237989315360");
     const [calldata, setCalldata] = useState("1234, 11");
     const [accountContractAddress, _] = useState("0x6b33e3421c7dccde0cf3246bea5058c4468cffc674bab4de95c9fef43430bce");
-    const [nonce, setNonce] = useState<number | undefined>();
+    const [nonce, setNonce] = useState<number | undefined>(0);
     const [signature, setSignature] = useState("");
 
     useEffect(() => {
@@ -39,6 +39,7 @@ const App = () => {
     const payload = useMemo(() => {
         try {
             return ({
+                nonce: BigInt(nonce),
                 address: BigInt(address),
                 selector: BigInt(selector),
                 calldata: calldata.split(",").map(v => v.trim()).filter(v => v).map(BigInt),
@@ -46,7 +47,7 @@ const App = () => {
         } catch (e) {
             return undefined
         }
-    }, [address, selector, calldata]);
+    }, [address, selector, calldata, nonce]);
 
     const hash = payload && getMessage(makeData(payload) as any, true);
     const transactionData = payload && Buffer.concat([
@@ -104,8 +105,12 @@ const App = () => {
             {transactionData && <pre>{transactionData.toString("hex")}</pre>}
         </div>
         <div style={padded}>
-            DATA HASH<br/>
-            <pre>{hash}</pre>
+            EIP712 DATA<br/>
+            {payload && <pre>{getMessage(makeData(payload) as any).toString("hex")}</pre>}
+        </div>
+        <div style={padded}>
+            EIP712 DATA HASH<br/>
+            {payload && <pre>{hash.toString("hex")}</pre>}
         </div>
         <div style={padded}>
             <button disabled={!lib || !payload} onClick={() => lib.sign(payload).then(setSignature)}>
