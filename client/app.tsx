@@ -1,5 +1,5 @@
 import ReactDOM from "react-dom";
-import {useEffect, useMemo, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {getLib, Lib, makeData} from "./lib";
 import {Address, ecrecover, fromRpcSig} from "ethereumjs-util";
 import {getMessage} from 'eip-712';
@@ -17,24 +17,23 @@ const recorverAddress = (signature: string, hash: Buffer) => {
     return Address.fromPublicKey(ecrecover(hash, sig.v, sig.r, sig.s));
 }
 
-const fetchNonce = (accountAddress): Promise<number> =>  defaultProvider.callContract({
-    contract_address: accountAddress,
-    entry_point_selector: getSelectorFromName("get_nonce"),
-    calldata: [],
-}).then(r =>  parseInt(r.result[0]));
-
 const App = () => {
     const [lib, setLib] = useState<Lib>();
     const [address, setAddress] = useState("0x03606DB92E563E41F4A590BC01C243E8178E9BA8C980F8E464579F862DA3537C");
     const [selector, setSelector] = useState("232670485425082704932579856502088130646006032362877466777181098476241604910");
     const [calldata, setCalldata] = useState("1111");
-    const [accountContractAddress, _] = useState("0x6b33e3421c7dccde0cf3246bea5058c4468cffc674bab4de95c9fef43430bce");
-    const [nonce, setNonce] = useState<number | undefined>(0);
+    const [nonce, setNonce] = useState("0");
     const [signature, setSignature] = useState("");
 
+    const updateNonce = useCallback(() => {
+        if (lib) {
+            lib.fetchNonce().then(v => setNonce(v.toString()))
+        }
+    }, [lib]);
+
     useEffect(() => {
-        fetchNonce(accountContractAddress).then(v => setNonce(v));
-    },[]);
+        updateNonce();
+    },[updateNonce]);
 
     const payload = useMemo(() => {
         try {
@@ -55,7 +54,7 @@ const App = () => {
         toBufferBE(payload.selector, 32),
         ...payload.calldata.map(v => toBufferBE(v, 32)),
     ]);
-    const transaction = payload && signature && nonce !== undefined && serialize({ data: transactionData, nonce }, signature);
+    const transaction = payload && signature && nonce !== undefined && serialize({ data: transactionData, nonce: parseInt(nonce) }, signature);
 
     return <div>
         <div style={padded}>
@@ -80,10 +79,6 @@ const App = () => {
             <label style={padded}>
                 Calldata
                 <input style={{display: "block"}} onChange={e => setCalldata(e.target.value)} value={calldata}/>
-            </label>
-            <label style={padded}>
-                Account contract address
-                <input style={{display: "block"}} value={accountContractAddress} disabled/>
             </label>
             <label style={padded}>
                 Nonce
@@ -126,7 +121,7 @@ const App = () => {
             {transaction && <pre>{transaction}</pre>}
         </div>
         <div style={padded}>
-            <button disabled={!transaction} onClick={() => lib.sendTransaction(transaction).then(console.log).catch(console.error)}>
+            <button disabled={!transaction} onClick={() => lib.sendTransaction(transaction).then(console.log).then(() => updateNonce()).catch(console.error)}>
                 SEND TRANSACTION
             </button>
         </div>

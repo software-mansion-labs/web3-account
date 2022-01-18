@@ -1,6 +1,8 @@
 import detectEthereumProvider = require("@metamask/detect-provider");
 import {MetaMaskInpageProvider} from "@metamask/providers";
-import {getStructHash} from "eip-712";
+import {computeHashOnElements} from "starknet/utils/hash";
+import {Provider} from "starknet";
+import {getSelectorFromName} from "starknet/utils/stark";
 
 const chain = {
     chainId: "0xb",
@@ -51,18 +53,6 @@ interface Payload {
     selector: bigint;
     calldata: bigint[];
 }
-// function bufferToHex (buffer) {
-//     return [...new Uint8Array (buffer)]
-//         .map (b => b.toString (16).padStart (2, "0"))
-//         .join ("");
-// }
-//
-// console.log("PAYLOAD", bufferToHex(getStructHash({...typedData, message: {}}, "Payload", {
-//     nonce: "0",
-//     address: "1527313146790301463986275421344872471267849035609999779125866589010379625340",
-//     selector: "1530486729947006463063166157847785599120665941190480211966374137237989315360",
-//     calldata: ["1234", "11"],
-// })))
 
 class MetamaskClient {
     constructor(protected provider: MetaMaskInpageProvider) {
@@ -74,7 +64,7 @@ class MetamaskClient {
 const UNRECOGNIZED_CHAIN = 4902;
 
 export class Lib extends MetamaskClient {
-    private accounts?: string[] = undefined;
+    private accounts?: string[];
 
     useStarknet = async () => {
         try {
@@ -99,14 +89,30 @@ export class Lib extends MetamaskClient {
     private switch = () => this.request("wallet_switchEthereumChain", {chainId});
 
     sign = async (payload: Payload) => {
-        if (!this.accounts || !this.accounts[0]) {
-            throw new Error("No account available");
-        }
+        this.ensureAccountExists();
         console.log("DATA", makeData(payload))
         return await this.request("eth_signTypedData_v4", this.accounts[0], JSON.stringify(makeData(payload)));
     }
 
     sendTransaction = (transaction: string) => this.request("eth_sendRawTransaction", transaction)
+
+    fetchNonce = async (): Promise<bigint> => {
+        const account = this.ensureAccountExists();
+        const provider = new Provider({baseUrl: process.env.NODE_URL});
+        const response = await provider.callContract({
+            contract_address: computeAddress(account),
+            entry_point_selector: getSelectorFromName("get_nonce"),
+            calldata: [],
+        });
+        return BigInt(response.result[0]);
+    }
+
+    ensureAccountExists = (): string => {
+        if (!this.accounts || !this.accounts[0]) {
+            throw Error("No account available")
+        }
+        return this.accounts[0];
+    }
 }
 
 export const getLib = async (): Promise<Lib | undefined> => {
@@ -124,3 +130,14 @@ export const getLib = async (): Promise<Lib | undefined> => {
 
     return new Lib(provider);
 }
+
+const contractHash = "0x" + BigInt(process.env.ACCOUNT_CONTRACT_HASH).toString(16);
+const contractSalt = "0x" + BigInt(process.env.ACCOUNT_ADDRESS_SALT).toString(16);
+
+export const computeAddress = (ethAddress: string) => computeHashOnElements([
+    "0x" + new Buffer("STARKNET_CONTRACT_ADDRESS", "ascii").toString("hex"),
+    0,
+    contractSalt,
+    contractHash, // Contract hash
+    computeHashOnElements([ethAddress])
+])
