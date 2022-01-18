@@ -48,6 +48,10 @@ const App = () => {
         }
     }, [address, selector, calldata, nonce]);
 
+    useEffect(() => {
+        setSignature("");
+    }, [payload])
+
     const hash = payload && getMessage(makeData(payload) as any, true);
     const transactionData = payload && Buffer.concat([
         toBufferBE(payload.address,32),
