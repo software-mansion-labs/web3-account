@@ -16,6 +16,7 @@ web3 = "^5.26.0"
 "starknet.py" = "^0.1.5-alpha.0"
 eip712-structs = "^1.1.0"
 pytest = "^6.2.5"
+eth-abi = "^2.1.1"
 
 [tool.poetry.dev-dependencies]
 poethepoet = "^0.12.0"

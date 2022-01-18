@@ -133,3 +133,4 @@ node_modules
 *.pem
 .parcel-cache
 .envrc
+erc20_mapping.json

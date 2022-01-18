@@ -8,10 +8,13 @@ from starknet_py.net import Client
 from starknet_py.net.models import StarknetChainId
 
 from server.app.deserialize import decode_raw_tx
-from server.app.settings import NODE_URL
+from server.app.erc20 import get_call_info
+from server.app.settings import NODE_URL, TOKENS_MAPPING
 from server.app.starknet import compute_eth_account_address
 
 Block = Union[str, int]
+
+client = Client(net=NODE_URL, chain=StarknetChainId.TESTNET)
 
 
 @method
@@ -75,7 +78,6 @@ async def eth_sendRawTransaction(transaction: str) -> str:
     print(decoded)
     sn_eth_address = compute_eth_account_address(decoded.from_address)
     print("target address", sn_eth_address)
-    client = Client(net=NODE_URL, chain=StarknetChainId.TESTNET)
     contract = await Contract.from_address(sn_eth_address, client=client)
     prepared = contract.functions["execute"].prepare(
         to=decoded.call_info.address,
@@ -92,6 +94,16 @@ async def eth_sendRawTransaction(transaction: str) -> str:
 
     # 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
     return Success(result.hash)
+
+
+@method
+async def eth_call(call_info, _block_number):
+    print(call_info)
+    token = TOKENS_MAPPING[int(call_info["to"], 0)]
+    contract = await Contract.from_address(token, client=client)
+    data = bytes.fromhex(call_info["data"][2:])
+    result = await get_call_info(contract, data)
+    return Success("0x" + result.hex())
 
 
 app = FastAPI()
