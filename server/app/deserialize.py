@@ -1,6 +1,6 @@
 # pylint: skip-file
 from dataclasses import dataclass
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Optional
 
 import rlp
 from eth_account._utils.signing import to_standard_v
@@ -12,6 +12,7 @@ from rlp.sedes import Binary, big_endian_int, binary
 from web3 import Web3
 
 from server.app.eip712 import to_message_hash
+from server.app.settings import TOKENS_MAPPING
 
 
 class Transaction(rlp.Serializable):
@@ -39,7 +40,6 @@ class StarknetCallInfo(NamedTuple):
 class DecodedTx:
     call_info: StarknetCallInfo
     from_address: str
-    hash_tx: str
     nonce: str
 
 
@@ -55,10 +55,14 @@ def get_data(nonce: int, value: bytes) -> StarknetCallInfo:
     return StarknetCallInfo(nonce, parsed[0], parsed[1], parsed[2:])
 
 
-def decode_raw_tx(raw_tx: str):
-    tx = rlp.decode(hex_to_bytes(raw_tx), Transaction)
-    hash_tx = Web3.toHex(keccak(hex_to_bytes(raw_tx)))
+def decode_raw_tx(raw_tx: str) -> Transaction:
+    return rlp.decode(hex_to_bytes(raw_tx), Transaction)
+
+
+# eip712
+def decode_eip712(tx: Transaction):
     data = get_data(tx.nonce, tx.data)
+
     hash = HexBytes(
         to_message_hash(
             nonce=data.nonce,
@@ -74,10 +78,43 @@ def decode_raw_tx(raw_tx: str):
         .recover_public_key_from_msg_hash(hash)
         .to_checksum_address()
     )
+    data = get_data(tx.nonce, tx.data)
 
     return DecodedTx(
         call_info=data,
-        hash_tx=hash_tx,
         from_address=from_address,
         nonce=tx.nonce,
+    )
+
+
+def get_simple_signature(
+    nonce: int,
+    gas_price: int,
+    gas_limit: int,
+    to: bytes,
+    value: int,
+    data: bytes,
+    v: int,
+    r: int,
+    s: int,
+):
+    encoded = rlp.encode(
+        [
+            nonce,
+            gas_price,
+            gas_limit,
+            to,
+            value,
+            data,
+            11,
+            0,
+            0,
+        ]
+    )
+    hash = keccak(encoded)
+
+    return (
+        Signature(vrs=(to_standard_v(v), r, s))
+        .recover_public_key_from_msg_hash(hash)
+        .to_checksum_address()
     )

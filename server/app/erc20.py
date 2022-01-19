@@ -4,7 +4,7 @@ from typing import List
 from eth_abi import decode_abi, encode_single
 from eth_utils import keccak
 from starknet_py.cairo.felt import decode_shortstring
-from starknet_py.contract import Contract
+from starknet_py.contract import Contract, InvocationResult, PreparedFunctionCall
 
 from server.app.starknet import compute_eth_account_address
 
@@ -91,7 +91,7 @@ def get_method(method_id: bytes) -> ContractMethod:
     return method_by_id[method_id]
 
 
-async def get_call_info(contract: Contract, data: bytes) -> bytes:
+async def call_erc20(contract: Contract, data: bytes) -> bytes:
     print("DATA", data)
     method_id, encoded_args = data[:4], data[4:]
     method = get_method(method_id)
@@ -103,3 +103,13 @@ async def get_call_info(contract: Contract, data: bytes) -> bytes:
     if type == "string":
         result = decode_shortstring(result)
     return encode_single(method.result_type, result)
+
+
+def prepare_erc20_invocation(contract: Contract, data: bytes) -> PreparedFunctionCall:
+    print("DATA", data)
+    method_id, encoded_args = data[:4], data[4:]
+    method = get_method(method_id)
+
+    args = get_args(method, encoded_args)
+    print("ARGS", args)
+    return contract.functions[method.name].prepare(*args)

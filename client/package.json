@@ -12,6 +12,7 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "remove": "^0.1.5",
+    "rlp": "^2.2.7",
     "starknet": "^2.5.0"
   },
   "devDependencies": {
