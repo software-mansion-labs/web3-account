@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from eip712_structs import EIP712Struct, Uint, make_domain, Array
 
@@ -15,7 +15,7 @@ class Payload(EIP712Struct):
     calldata = Array(Uint(256))
 
 
-domain = make_domain(name="Starknet adapter", chainId=CHAIN_ID, version="1")
+adapter_domain = make_domain(name="Starknet adapter", chainId=CHAIN_ID, version="1")
 
 
 def to_message_hash(
@@ -23,7 +23,9 @@ def to_message_hash(
     address: int,
     selector: int,
     calldata: List[int],
+    domain: Optional[EIP712Struct] = None,
 ):
+    domain = domain or adapter_domain
     payload = Payload(
         nonce=nonce,
         address=address,

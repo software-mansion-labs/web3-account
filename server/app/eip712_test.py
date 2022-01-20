@@ -1,6 +1,7 @@
 # pylint: skip-file
+from eip712_structs import make_domain
 
-from server.app.eip712 import Payload, domain, to_message_hash
+from server.app.eip712 import Payload, to_message_hash
 
 payload_args = dict(
     nonce=0,
@@ -11,10 +12,13 @@ payload_args = dict(
 
 signature = 0x537021CF10650D5798C78FE6CE1008C7FB04123B18194BADA3C307EE55263A450C0158566D52B92DF1B231DDCF61B31E65397DB6AA97CDF9DFC5676F727400471C
 
+test_domain = make_domain(name="Starknet adapter", chainId=0xB, version="1")
+
 
 def test_schema():
     payload = Payload(**payload_args)
 
+    domain = test_domain
     payload.signable_bytes(domain=domain)
 
     assert (
@@ -33,6 +37,6 @@ def test_schema():
 
 def test_to_message_hash():
     assert (
-        to_message_hash(**payload_args).hex()
+        to_message_hash(**payload_args, domain=test_domain).hex()
         == "376f97f637e0ecd7f3c199525893cdc5cf06e4c0df7056a56d0a74d75cb52189"
     )
