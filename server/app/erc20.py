@@ -1,12 +1,19 @@
 import dataclasses
-from typing import List
+from typing import List, Tuple
 
 from eth_abi import decode_abi, encode_single
 from eth_utils import keccak
+from hexbytes import HexBytes
 from starknet_py.cairo.felt import decode_shortstring
-from starknet_py.contract import Contract, InvocationResult, PreparedFunctionCall
+from starknet_py.contract import Contract, PreparedFunctionCall
+from starknet_py.net import Client
 
-from server.app.starknet import compute_eth_account_address
+from server.app.erc_20_abi import erc_20_abi
+from server.app.eth_account import compute_eth_account_address
+
+
+def get_erc20_contract(client: Client, address: str) -> Contract:
+    return Contract(address=address, client=client, abi=erc_20_abi)
 
 
 @dataclasses.dataclass
@@ -22,7 +29,7 @@ class ContractMethod:
     result_type: str
 
 
-methods = [
+eth_methods = [
     ContractMethod("name", [], "string"),
     ContractMethod("symbol", [], "string"),
     ContractMethod("decimals", [], "uint8"),
@@ -57,8 +64,7 @@ def make_method_id(method: ContractMethod) -> bytes:
     return keccak(text=signature)[:4]
 
 
-method_by_id = {make_method_id(method): method for method in methods}
-print(method_by_id)
+method_by_id = {make_method_id(method): method for method in eth_methods}
 
 SUPPORTED_TYPES = ("address", "uint256", "uint8", "string", "bool")
 
@@ -77,7 +83,6 @@ def decoded_to_sdk(param, value):
 
 
 def get_args(method: ContractMethod, data: bytes) -> list:
-    print("METHOD", method.name)
     decoded = decode_abi([p.type for p in method.params], data)
     return [
         decoded_to_sdk(param, value) for param, value in zip(method.params, decoded)
@@ -91,25 +96,23 @@ def get_method(method_id: bytes) -> ContractMethod:
     return method_by_id[method_id]
 
 
-async def call_erc20(contract: Contract, data: bytes) -> bytes:
-    print("DATA", data)
+def get_method_with_args(data: bytes) -> Tuple[ContractMethod, list]:
     method_id, encoded_args = data[:4], data[4:]
     method = get_method(method_id)
-
     args = get_args(method, encoded_args)
+    return method, args
+
+
+def get_prepared_erc20_call(contract: Contract, data: bytes) -> PreparedFunctionCall:
+    method, args = get_method_with_args(data)
+    return contract.functions[method.name].prepare(*args)
+
+
+async def call_erc20(contract: Contract, data: bytes) -> HexBytes:
+    method, args = get_method_with_args(data)
     response = await contract.functions[method.name].call(*args)
     result = response[0]
 
-    if type == "string":
+    if method.result_type == "string":
         result = decode_shortstring(result)
-    return encode_single(method.result_type, result)
-
-
-def prepare_erc20_invocation(contract: Contract, data: bytes) -> PreparedFunctionCall:
-    print("DATA", data)
-    method_id, encoded_args = data[:4], data[4:]
-    method = get_method(method_id)
-
-    args = get_args(method, encoded_args)
-    print("ARGS", args)
-    return contract.functions[method.name].prepare(*args)
+    return HexBytes(encode_single(method.result_type, result))

@@ -6,7 +6,7 @@ from starknet_py.contract import Contract
 from starknet_py.net import Client
 from starknet_py.net.models import StarknetChainId
 
-from server.app.starknet import compute_eth_account_address
+from server.app.eth_account import compute_eth_account_address
 
 if __name__ != "__main__":
     raise Exception("Must be run as a script")
@@ -25,7 +25,7 @@ erc20_address = Contract.compute_address(
     constructor_args={
         "name": "COIN",
         "symbol": "COIN",
-        "initial_supply": 11111111,
+        "initial_supply": round(1e6 * 1e18),
         "recipient": account_address,
     },
     salt=ACCOUNT_ADDRESS_SALT,

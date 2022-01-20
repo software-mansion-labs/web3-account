@@ -19,3 +19,4 @@ TOKENS_MAPPING = {
         Path("./erc20_mapping.json").read_text(encoding="utf-8") or "{}"
     ).items()
 }
+CHAIN_ID = int(require_env("CHAIN_ID"), 0)

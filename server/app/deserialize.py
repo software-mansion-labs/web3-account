@@ -1,6 +1,6 @@
 # pylint: skip-file
 from dataclasses import dataclass
-from typing import List, NamedTuple, Optional
+from typing import List, NamedTuple, Any
 
 import rlp
 from eth_account._utils.signing import to_standard_v
@@ -9,10 +9,9 @@ from eth_typing import HexStr
 from eth_utils import keccak, to_bytes
 from hexbytes import HexBytes
 from rlp.sedes import Binary, big_endian_int, binary
-from web3 import Web3
 
 from server.app.eip712 import to_message_hash
-from server.app.settings import TOKENS_MAPPING
+from server.app.settings import CHAIN_ID
 
 
 class Transaction(rlp.Serializable):
@@ -55,11 +54,10 @@ def get_data(nonce: int, value: bytes) -> StarknetCallInfo:
     return StarknetCallInfo(nonce, parsed[0], parsed[1], parsed[2:])
 
 
-def decode_raw_tx(raw_tx: str) -> Transaction:
+def decode_raw_tx(raw_tx: str) -> Any:
     return rlp.decode(hex_to_bytes(raw_tx), Transaction)
 
 
-# eip712
 def decode_eip712(tx: Transaction):
     data = get_data(tx.nonce, tx.data)
 
@@ -71,8 +69,6 @@ def decode_eip712(tx: Transaction):
             calldata=data.calldata,
         )
     )
-    print("DATA", tx.data.hex())
-    print("HASH", hash.hex())
     from_address = (
         Signature(vrs=(to_standard_v(tx.v), tx.r, tx.s))
         .recover_public_key_from_msg_hash(hash)
@@ -87,7 +83,7 @@ def decode_eip712(tx: Transaction):
     )
 
 
-def get_simple_signature(
+def simple_signature_to_address(
     nonce: int,
     gas_price: int,
     gas_limit: int,
@@ -106,7 +102,7 @@ def get_simple_signature(
             to,
             value,
             data,
-            11,
+            CHAIN_ID,
             0,
             0,
         ]

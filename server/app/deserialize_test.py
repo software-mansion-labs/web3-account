@@ -1,8 +1,8 @@
-from server.app.deserialize import get_simple_signature
+from server.app.deserialize import simple_signature_to_address
 
 
 def test_signature():
-    address = get_simple_signature(
+    address = simple_signature_to_address(
         nonce=0,
         gas_price=0,
         gas_limit=0x5208,

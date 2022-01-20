@@ -5,12 +5,14 @@ import {Provider} from "starknet";
 import {getSelectorFromName} from "starknet/utils/stark";
 
 const chain = {
-    chainId: "0xb",
+    chainId: process.env.CHAIN_ID,
     chainName: "Starknet",
     rpcUrls: ["https://localhost:8000"]
 }
 
-const chainId = "0xb";
+const chainId = process.env.CHAIN_ID;
+
+console.log({chainId})
 
 export const typedData = {
     domain: {

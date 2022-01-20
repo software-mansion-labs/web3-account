@@ -37,7 +37,7 @@ erc20 = Contract.deploy_sync(
     constructor_args={
         "name": "COIN",
         "symbol": "COIN",
-        "initial_supply": 11111111,
+        "initial_supply": round(1e6 * 1e18),
         "recipient": account.address,
     },
     salt=ACCOUNT_ADDRESS_SALT,
