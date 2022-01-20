@@ -44,8 +44,3 @@ erc20 = Contract.deploy_sync(
 )
 print("ERC20 ADDRESS:", erc20.address)
 print("ERC20 ADDRESS TRANSFER SELECTOR", get_selector_from_name("transfer"))
-
-erc_20_mapping = {"0x1111111111111111111111111111111111111111": str(erc20.address)}
-import json
-
-Path("./erc20_mapping.json").write_text(json.dumps(erc_20_mapping))

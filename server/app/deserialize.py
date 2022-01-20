@@ -6,12 +6,11 @@ import rlp
 from eth_account._utils.signing import to_standard_v
 from eth_keys.datatypes import Signature
 from eth_typing import HexStr
-from eth_utils import keccak, to_bytes
+from eth_utils import to_bytes
 from hexbytes import HexBytes
 from rlp.sedes import Binary, big_endian_int, binary
 
 from server.app.eip712 import to_message_hash
-from server.app.settings import CHAIN_ID
 
 
 class Transaction(rlp.Serializable):
@@ -80,37 +79,4 @@ def decode_eip712(tx: Transaction):
         call_info=data,
         from_address=from_address,
         nonce=tx.nonce,
-    )
-
-
-def simple_signature_to_address(
-    nonce: int,
-    gas_price: int,
-    gas_limit: int,
-    to: bytes,
-    value: int,
-    data: bytes,
-    v: int,
-    r: int,
-    s: int,
-):
-    encoded = rlp.encode(
-        [
-            nonce,
-            gas_price,
-            gas_limit,
-            to,
-            value,
-            data,
-            CHAIN_ID,
-            0,
-            0,
-        ]
-    )
-    hash = keccak(encoded)
-
-    return (
-        Signature(vrs=(to_standard_v(v), r, s))
-        .recover_public_key_from_msg_hash(hash)
-        .to_checksum_address()
     )
