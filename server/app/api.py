@@ -30,8 +30,7 @@ async def net_version() -> Result:
 
 @method
 async def eth_blockNumber() -> Result:
-    block = await client.get_block()
-    return Success(hex(block["block_number"]))
+    return Success("0x123")
 
 
 @method

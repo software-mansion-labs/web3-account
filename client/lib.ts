@@ -3,6 +3,8 @@ import {MetaMaskInpageProvider} from "@metamask/providers";
 import {computeHashOnElements} from "starknet/utils/hash";
 import {Provider} from "starknet";
 import {getSelectorFromName} from "starknet/utils/stark";
+import {serialize} from "@ethersproject/transactions";
+import {toBufferBE} from "bigint-buffer";
 
 const chain = {
     chainId: process.env.CHAIN_ID,
@@ -56,19 +58,14 @@ interface Payload {
     calldata: bigint[];
 }
 
+const UNRECOGNIZED_CHAIN = 4902;
+const WRONG_ADDRESS = -32602
+
 class MetamaskClient {
     constructor(protected provider: MetaMaskInpageProvider) {
     }
 
-    request = (method: string, ...params: any[]) => this.provider.request({method, params})
-}
-
-const UNRECOGNIZED_CHAIN = 4902;
-
-export class Lib extends MetamaskClient {
-    private accounts?: string[];
-
-    useStarknet = async () => {
+    public useStarknet = async () => {
         try {
             await this.switch();
         } catch (e) {
@@ -81,43 +78,73 @@ export class Lib extends MetamaskClient {
         }
     }
 
-    connectAccounts = async () => {
-        await this.request("eth_requestAccounts")
-        const accounts = await this.request("eth_accounts") as string[];
-        this.accounts = [...accounts];
-        return accounts
+    // Handling changes in network is problematic, useStarknet has minimal overhead
+    protected withStarknet = <Args extends Array<any>, Result>(fn: (...args: Args) => Promise<Result>) => async (...args: Args): Promise<Result> => {
+        await this.useStarknet();
+        return fn(...args);
+    };
+
+    protected switch = () => this.request("wallet_switchEthereumChain", {chainId});
+
+    request = (method: string, ...params: any[]) => this.provider.request({method, params})
+}
+
+export class AccountClient extends MetamaskClient {
+    constructor(provider: MetaMaskInpageProvider, public readonly address: string) {
+        super(provider);
     }
 
-    private switch = () => this.request("wallet_switchEthereumChain", {chainId});
-
-    sign = async (payload: Payload) => {
-        this.ensureAccountExists();
-        console.log("DATA", makeData(payload))
-        return await this.request("eth_signTypedData_v4", this.accounts[0], JSON.stringify(makeData(payload)));
+    invoke = async (payload: Omit<Payload, "nonce"> & { nonce?: bigint }) => {
+        const transactionData = Buffer.concat([
+            toBufferBE(payload.address, 32),
+            toBufferBE(payload.selector, 32),
+            ...payload.calldata.map(v => toBufferBE(v, 32)),
+        ]);
+        const nonce = payload.nonce || await this.fetchNonce();
+        const signature = await this.sign({...payload, nonce});
+        const transaction = serialize({
+            data: transactionData,
+            nonce: Number(nonce)
+        }, signature as any);
+        return await this.request("eth_sendRawTransaction", transaction)
     }
 
-    sendTransaction = (transaction: string) => this.request("eth_sendRawTransaction", transaction)
+    sign = this.withStarknet(async (payload: Payload) => {
+        return await this.request("eth_signTypedData_v4", this.address, JSON.stringify(makeData(payload)));
+    });
 
     fetchNonce = async (): Promise<bigint> => {
-        const account = this.ensureAccountExists();
         const provider = new Provider({baseUrl: process.env.NODE_URL});
         const response = await provider.callContract({
-            contract_address: computeAddress(account),
+            contract_address: computeAddress(this.address),
             entry_point_selector: getSelectorFromName("get_nonce"),
             calldata: [],
         });
         return BigInt(response.result[0]);
     }
+}
 
-    ensureAccountExists = (): string => {
-        if (!this.accounts || !this.accounts[0]) {
-            throw Error("No account available")
+type AccountsChangeHandler = (accounts: AccountClient[]) => void;
+type HandlerRemover = () => void;
+
+export class StarknetAdapter extends MetamaskClient {
+    getAccounts = this.withStarknet(async (): Promise<AccountClient[]> => {
+        const accounts = await this.request("eth_requestAccounts") as string[];
+        return accounts.map(a => new AccountClient(this.provider, a));
+    });
+
+    addAccountsChangeHandler = (handler: AccountsChangeHandler): HandlerRemover => {
+        const eventHandler = (accounts: string[]) => {
+            handler(accounts.map(a => new AccountClient(this.provider, a)));
         }
-        return this.accounts[0];
+        this.provider.on("accountsChanged", eventHandler);
+        return () => {
+            this.provider.removeListener("accountsChanged", eventHandler);
+        }
     }
 }
 
-export const getLib = async (): Promise<Lib | undefined> => {
+export const getAdapter = async (): Promise<StarknetAdapter | undefined> => {
     const provider = await detectEthereumProvider() as MetaMaskInpageProvider | undefined;
 
     if (!provider) {
@@ -130,7 +157,7 @@ export const getLib = async (): Promise<Lib | undefined> => {
         return;
     }
 
-    return new Lib(provider);
+    return new StarknetAdapter(provider);
 }
 
 const contractHash = "0x" + BigInt(process.env.ACCOUNT_CONTRACT_HASH).toString(16);
@@ -140,6 +167,6 @@ export const computeAddress = (ethAddress: string) => computeHashOnElements([
     "0x" + new Buffer("STARKNET_CONTRACT_ADDRESS", "ascii").toString("hex"),
     0,
     contractSalt,
-    contractHash, // Contract hash
+    contractHash,
     computeHashOnElements([ethAddress])
 ])
