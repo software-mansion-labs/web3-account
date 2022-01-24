@@ -1,7 +1,8 @@
 import ReactDOM from "react-dom";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {AccountClient, computeAddress, getAdapter, makeData} from "./lib";
+import {computeAddress, EthAccountProvider, getAdapter, makeData} from "./lib";
 import {getMessage} from 'eip-712';
+import {toBN} from "starknet/utils/number";
 
 const padded = {display: "block", padding: 20};
 const inputStyle = {width: "600px", display: "block"}
@@ -34,7 +35,7 @@ const AddressTranslator = () => {
 
 
 const App = () => {
-    const [lib, setLib] = useState<AccountClient>();
+    const [lib, setLib] = useState<EthAccountProvider>();
     const [address, setAddress] = useState("396161077959321855490201456901350256251627335322770279210021764778476269939");
     const [selector, setSelector] = useState("232670485425082704932579856502088130646006032362877466777181098476241604910");
     const [calldata, setCalldata] = useState("0x1d68d5dd4c8df4dda6b22e3037f44ba083870ef5a5d1d076b267261f21671d8, 1, 0");
@@ -53,10 +54,10 @@ const App = () => {
     const payload = useMemo(() => {
         try {
             return ({
-                nonce: BigInt(nonce),
-                address: BigInt(address),
-                selector: BigInt(selector),
-                calldata: calldata.split(",").map(v => v.trim()).filter(v => v).map(BigInt),
+                nonce: toBN(nonce),
+                address: toBN(address),
+                selector: toBN(selector),
+                calldata: calldata.split(",").map(v => v.trim()).filter(v => v).map(v => toBN(v)),
             });
         } catch (e) {
             return undefined
@@ -117,7 +118,13 @@ const App = () => {
         </div>
         <div style={padded}>
             <button disabled={!lib || !payload}
-                    onClick={() => lib.invoke(payload).then(console.log).then(() => alert("SUCCESS!")).then(() => updateNonce()).catch(console.error)}>
+                    onClick={() => lib.addTransaction({
+                        type: "INVOKE_FUNCTION",
+                        nonce: payload.nonce,
+                        contract_address: payload.address,
+                        entry_point_selector: payload.selector,
+                        calldata: payload.calldata
+                    }).then(console.log).then(() => alert("SUCCESS!")).then(() => updateNonce()).catch(console.error)}>
                 SEND TRANSACTION
             </button>
         </div>

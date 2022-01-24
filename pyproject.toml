@@ -34,7 +34,7 @@ test = "pytest server"
 shell = """
     trap "exit" INT TERM
     trap "kill 0" EXIT
-    starknet-devnet --host localhost --port 5000 &
+    starknet-devnet --host localhost --port 5001 &
     DEVNET_PID=$!
     sleep 1
     python contracts/setup.py $eth_address

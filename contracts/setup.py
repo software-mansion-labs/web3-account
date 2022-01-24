@@ -11,7 +11,7 @@ if __name__ != "__main__":
     raise Exception("Not run as a script")
 
 eth_address = int(sys.argv[1], 0)
-client = Client(net="http://localhost:5000", chain=StarknetChainId.TESTNET)
+client = Client(net=os.getenv("NODE_URL"), chain=StarknetChainId.TESTNET)
 
 account_script = Path("./contracts/ETH_Account.cairo").read_text()
 erc_20_scripts = {
