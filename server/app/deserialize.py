@@ -68,6 +68,15 @@ def decode_eip712(tx: Transaction):
             calldata=data.calldata,
         )
     )
+    public_key = Signature(
+        vrs=(to_standard_v(tx.v), tx.r, tx.s)
+    ).recover_public_key_from_msg_hash(hash)
+    print("MSG HASH", hash.hex())
+    print("PUBLIC KEY", public_key.to_hex())
+    print("NONCE", tx.nonce)
+    print("R", tx.r)
+    print("S", tx.s)
+    print("V", to_standard_v(tx.v))
     from_address = (
         Signature(vrs=(to_standard_v(tx.v), tx.r, tx.s))
         .recover_public_key_from_msg_hash(hash)

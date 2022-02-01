@@ -30,6 +30,8 @@ devserver = "uvicorn server:app --reload --ssl-keyfile=./key.pem --ssl-certfile=
 lint = "pylint server"
 format = "black ."
 test = "pytest server"
+test_eip712 = "poetry run python run_eip712_tests.py"
+test_test = "poetry run python contracts/test.py"
 [tool.poe.tasks.devnet]
 shell = """
     trap "exit" INT TERM

@@ -27,4 +27,19 @@ eth_account_abi = [
         ],
         "type": "function",
     },
+    {
+        "inputs": [
+            {"name": "to", "type": "felt"},
+            {"name": "selector", "type": "felt"},
+            {"name": "calldata_len", "type": "felt"},
+            {"name": "calldata", "type": "felt*"},
+            {"name": "nonce", "type": "felt"},
+        ],
+        "name": "haha",
+        "outputs": [
+            {"name": "response_len", "type": "felt"},
+            {"name": "response", "type": "felt*"},
+        ],
+        "type": "function",
+    },
 ]

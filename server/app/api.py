@@ -1,6 +1,7 @@
 # pylint: disable=invalid-name
 from typing import Union
 
+from eth_account._utils.signing import to_standard_v
 from fastapi import FastAPI, Request, Response
 from jsonrpcserver import Result, Success, async_dispatch, method
 from starknet_py.net import Client
@@ -82,15 +83,24 @@ async def eth_getBlockByHash(_block_hash, _full: bool) -> Result:
 async def eth_sendRawTransaction(transaction: str) -> str:
     tx = decode_raw_tx(transaction)
     decoded = decode_eip712(tx)
-    account = get_eth_account_contract(client, decoded.from_address)
-    invocation = await account.functions["execute"].invoke(
+    print("TO", decoded.call_info.address)
+    print("CALLDATA", decoded.call_info.calldata)
+    print("NONCE", decoded.call_info.nonce)
+    print("SELECTOR", decoded.call_info.selector)
+    account = await get_eth_account_contract(client, decoded.from_address)
+    prepared = account.functions["execute"].prepare(
         to=decoded.call_info.address,
         selector=decoded.call_info.selector,
         calldata=decoded.call_info.calldata,
         nonce=decoded.call_info.nonce,
     )
+    base = 2 ** 128
+    invocation = await prepared.invoke(
+        [to_standard_v(tx.v), tx.r % base, tx.r // base, tx.s % base, tx.s // base]
+    )
 
-    await invocation.wait_for_acceptance()
+    result = await invocation.wait_for_acceptance()
+    print("RES", result)
 
     return Success(invocation.hash)
 

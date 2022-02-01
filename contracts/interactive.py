@@ -13,7 +13,7 @@ if __name__ != "__main__":
 
 ACCOUNT_ADDRESS_SALT = int(os.getenv("ACCOUNT_ADDRESS_SALT"))
 eth_address = int(sys.argv[1], 0)
-client = Client(net="http://localhost:5000", chain=StarknetChainId.TESTNET)
+client = Client(net="http://localhost:5001", chain=StarknetChainId.TESTNET)
 
 account_address = compute_eth_account_address(eth_address)
 print("ADDRESS", account_address)
