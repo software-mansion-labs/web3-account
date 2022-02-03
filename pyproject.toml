@@ -8,8 +8,8 @@ repository = "https://github.com/software-mansion-labs/starknet-web3-rpc-adapter
 license = "MIT"
 
 [tool.black]
-exclude = """
-keccak-cairo
+include = """
+server
 """
 
 [tool.poetry.dependencies]
