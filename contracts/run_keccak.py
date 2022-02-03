@@ -32,7 +32,7 @@ print("FULL HASH", "0x" + keccak(payload.signable_bytes(domain=adapter_domain)).
 
 client = Client(net=os.getenv("NODE_URL"), chain=StarknetChainId.TESTNET)
 
-script = Path("./contract.cairo").read_text()
+script = Path("./contracts/keccak256.cairo").read_text()
 
 contract = Contract.deploy_sync(
     client=client,
@@ -54,12 +54,29 @@ def get_hex(result):
     return "0x" + to_bytes([r.to_bytes(8, "little") for r in result]).hex()
 
 
+def get_bhex(result):
+    return "0x" + to_bytes(reversed([r.to_bytes(8, "big") for r in result])).hex()
+
+
 def py_keccak(value, bytes):
     from Crypto.Hash import keccak
 
     k = keccak.new(digest_bits=256)
-    k.update(value.to_bytes(bytes, "little"))
+    k.update(value.to_bytes(bytes, "big"))
     return k.hexdigest()
+
+
+def keccak(bytes):
+    from Crypto.Hash import keccak
+
+    k = keccak.new(digest_bits=256)
+    k.update(bytes)
+    return k.hexdigest()
+
+
+def u_keccak(values):
+    b = b"".join([value.to_bytes(32, "big") for value in values])
+    return keccak(b)
 
 
 f = contract.functions["to_integers"]
@@ -72,4 +89,13 @@ args = {
 }
 
 
-payload2 = Payload(nonce=1, address=1, selector=1, calldata=[])
+def call(values):
+    return contract.functions["uint256_keccak"].call_sync(values)
+
+
+def to_word(v):
+    b = v.to_bytes(8, "little")
+    return int.from_bytes(b, "big")
+
+
+x = (12 << 192) + (13 << 128) + (88 << 64) + 14241242

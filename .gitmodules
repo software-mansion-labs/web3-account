@@ -1,0 +1,3 @@
+[submodule "keccak-cairo"]
+	path = keccak-cairo
+	url = git@github.com:marcellobardus/keccak-cairo.git

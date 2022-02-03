@@ -1,6 +1,7 @@
 %lang starknet
+%builtins pedersen range_check ecdsa bitwise
 
-from keccak import finalize_keccak, keccak
+from keccak import keccak256
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.bitwise import bitwise_and
@@ -108,26 +109,160 @@ func to_little_endian{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value: fel
 end
 
 @view
-func felt_keccak{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value: felt) -> (r0 : felt, r1 : felt, r2 : felt, r3 : felt):
+func keccak_result_to_uint256{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(r0 : felt, r1 : felt, r2 : felt, r3 : felt) -> (res: Uint256):
     alloc_locals
-    let (r0,r1,r2,r3) = to_integers(value)
+    # rx are little endian already, we actually need to make them big endian
+    let (reversed0) = to_little_endian(r0)
+    let (reversed1) = to_little_endian(r1)
+    let (reversed2) = to_little_endian(r2)
+    let (reversed3) = to_little_endian(r3)
 
-    let (inputs: felt*) = alloc()
+    let low = reversed3 + reversed2 * 2**64
+    let high = reversed1 + reversed0 * 2**64
+
+    return (Uint256(low, high))
+end
+
+#@view
+#func felt_keccak{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value: felt) -> (result: Uint256):
+#    alloc_locals
+#    let (r0,r1,r2,r3) = to_integers(value)
+#
+#    let (inputs: felt*) = alloc()
+#    let (le0) = to_little_endian(r0)
+#    let (le1) = to_little_endian(r1)
+#    let (le2) = to_little_endian(r2)
+#    let (le3) = to_little_endian(r3)
+#    assert inputs[0] = le3
+#    assert inputs[1] = le2
+#    assert inputs[2] = le1
+#    assert inputs[3] = le0
+#
+#    let (local keccak_ptr_start : felt*) = alloc()
+#    let keccak_ptr = keccak_ptr_start
+#
+#    let (local output : felt*) = keccak{keccak_ptr=keccak_ptr}(inputs, 32)
+#    finalize_keccak(keccak_ptr_start=keccak_ptr_start, keccak_ptr_end=keccak_ptr)
+#    let (res) = keccak_result_to_uint256(output[0], output[1], output[2], output[3])
+#    return (res)
+#end
+
+@view
+func split_uint256{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value: Uint256) -> (res0 : felt, res1 : felt, res2 : felt, res3 : felt):
+    alloc_locals
+    local first_mask = 2 ** 64 - 1
+    local second_mask = 2 ** 128 - 1 - first_mask
+    local second_shift = 2 ** 64
+
+    let (r0) = bitwise_and(value.low, first_mask)
+
+    let (second_masked) = bitwise_and(value.low, second_mask)
+    let r1 = second_masked / second_shift
+
+    let (r2) = bitwise_and(value.high, first_mask)
+
+    let (fourth_masked) = bitwise_and(value.high, second_mask)
+    let r3 = fourth_masked  / second_shift
+
+    return (r0,r1,r2,r3)
+end
+
+func reverse_inner{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(index: felt, values_len: felt, values: felt*, result: felt*) -> ():
+    alloc_locals
+    if values_len == index:
+        return ()
+    end
+
+    let last_index = values_len - 1
+    let reversed_index = last_index - index
+    let value = values[index]
+    assert result[reversed_index] = value
+
+    reverse_inner(index+1, values_len, values, result)
+    return ()
+end
+
+@view
+func reverse{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(values_len: felt, values: felt*) -> (res_len: felt, res: felt*):
+    alloc_locals
+    let (result: felt*) = alloc()
+
+    reverse_inner(0, values_len, values, result)
+
+    return (values_len, result)
+end
+
+
+func split_uint256s{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(values_len: felt, values: Uint256*, result: felt*) -> (res: felt*):
+    alloc_locals
+    if values_len == 0:
+        return (result)
+    end
+
+    let value = [values]
+    let (r0,r1,r2,r3) = split_uint256(value)
     let (le0) = to_little_endian(r0)
     let (le1) = to_little_endian(r1)
     let (le2) = to_little_endian(r2)
     let (le3) = to_little_endian(r3)
-    assert inputs[0] = le3
-    assert inputs[1] = le2
-    assert inputs[2] = le1
-    assert inputs[3] = le0
+
+    assert result[0] = le3
+    assert result[1] = le2
+    assert result[2] = le1
+    assert result[3] = le0
+
+    #assert result[0] = le0
+    #assert result[1] = le1
+    #assert result[2] = le2
+    #assert result[3] = le3
+
+    split_uint256s(values_len - 1, values + 2, result + 4)
+    return (result)
+end
+
+@view
+func split_one_uint256{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value: Uint256) -> (r0 : felt, r1 : felt, r2 : felt, r3 : felt):
+    alloc_locals
+    let (values: Uint256*) = alloc()
+    assert values[0] = value
+    tempvar values_len = 1
+
+    let (inputs: felt*) = alloc()
+    split_uint256s(values_len, values, inputs)
+
+    return (inputs[0], inputs[1], inputs[2], inputs[3])
+end
+
+@view
+func uint256_keccak{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
+        value0: Uint256,
+        value1: Uint256,
+        value2: Uint256,
+        value3: Uint256,
+        value4: Uint256,
+    ) -> (res: Uint256):
+    alloc_locals
+    let (values: Uint256*) = alloc()
+    assert values[0] = value0
+    assert values[1] = value1
+    assert values[2] = value2
+    assert values[3] = value3
+    assert values[4] = value4
+    tempvar values_len = 5
+
+    let (inputs: felt*) = alloc()
+    split_uint256s(values_len, values, inputs)
+    #let (_len, inputs) = reverse(values_len*4, splitted)
 
     let (local keccak_ptr_start : felt*) = alloc()
     let keccak_ptr = keccak_ptr_start
 
-    let (local output : felt*) = keccak{keccak_ptr=keccak_ptr}(inputs, 32)
-    finalize_keccak(keccak_ptr_start=keccak_ptr_start, keccak_ptr_end=keccak_ptr)
-    return (output[0], output[1], output[2], output[3])
+    let (local output : felt*) = keccak256{keccak_ptr=keccak_ptr}(inputs, values_len * 32)
+    #finalize_keccak(keccak_ptr_start=keccak_ptr_start, keccak_ptr_end=keccak_ptr)
+
+
+    let (res) = keccak_result_to_uint256(output[0], output[1], output[2], output[3])
+    return (res)
 end
 
 func to_16_integers{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value) -> (low: felt, high: felt):
@@ -311,17 +446,18 @@ end
 # input should consist of a list of 64-bit integers (each representing 8 bytes, in little endian).
 # n_bytes should be the number of input bytes (for example, it should be between 8*input_len - 7 and
 # 8*input_len).
-@view
-func compute_keccak{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
-        input_len : felt, input : felt*, n_bytes : felt) -> (
-        res0 : felt, res1 : felt, res2 : felt, res3 : felt):
-    alloc_locals
-
-    let (local keccak_ptr_start : felt*) = alloc()
-    let keccak_ptr = keccak_ptr_start
-
-    let (local output : felt*) = keccak{keccak_ptr=keccak_ptr}(input, n_bytes)
-    finalize_keccak(keccak_ptr_start=keccak_ptr_start, keccak_ptr_end=keccak_ptr)
-
-    return (output[0], output[1], output[2], output[3])
-end
+#@view
+#func compute_keccak{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
+#        input_len : felt, input : felt*, n_bytes : felt) -> (
+#        res0 : felt, res1 : felt, res2 : felt, res3 : felt):
+#    alloc_locals
+#
+#    let (local keccak_ptr_start : felt*) = alloc()
+#    let keccak_ptr = keccak_ptr_start
+#
+#    let (local output : felt*) = keccak{keccak_ptr=keccak_ptr}(input, n_bytes)
+#    finalize_keccak(keccak_ptr_start=keccak_ptr_start, keccak_ptr_end=keccak_ptr)
+#
+#    return (output[0], output[1], output[2], output[3])
+#end
+#
