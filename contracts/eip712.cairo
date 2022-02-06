@@ -6,23 +6,23 @@ from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.keccak import unsafe_keccak
 from starkware.cairo.common.bitwise import bitwise_and
+from contracts.keccak256 import uint256_keccak
 
-func fill_with_uint128{range_check_ptr}(result: felt*, values: felt*, values_len: felt) -> ():
+func fill_with_uint256{range_check_ptr}(result: Uint256*, values: felt*, values_len: felt) -> ():
     if values_len == 0:
         return ()
     end
 
     let (high, low) = split_felt([values])
-    assert [result] = high
-    assert [result+1] = low
-    fill_with_uint128(result + 2, values + 1, values_len - 1)
+    assert result[0] = Uint256(low, high)
+    fill_with_uint256(result + 2, values + 1, values_len - 1)
     return ()
 end
 
-func map_to_uint128{range_check_ptr}(values: felt*, values_len: felt) -> (result: felt*):
+func map_to_uint256{range_check_ptr}(values: felt*, values_len: felt) -> (result: Uint256*):
     alloc_locals
-    let (result: felt*) = alloc()
-    fill_with_uint128(result, values, values_len)
+    let (result: Uint256*) = alloc()
+    fill_with_uint256(result, values, values_len)
     return (result)
 end
 
@@ -57,39 +57,30 @@ func get_hash{
         nonce: felt
     ) -> (hashed_msg: Uint256):
     alloc_locals
-    let (calldata_uint128) = map_to_uint128(calldata, calldata_len)
+    let (calldata_uint256) = map_to_uint256(calldata, calldata_len)
+    let (calldata_hash) = uint256_keccak(calldata_uint256, calldata_len * 32)
 
-    let (calldata_hash_l, calldata_hash_h) = unsafe_keccak(calldata_uint128, calldata_len * 32)
-    # split_felt returns high, low (unlike unsafe_keccak)
     let (nonce_h, nonce_l) = split_felt(nonce)
     let (to_h, to_l) = split_felt(to)
     let (selector_h, selector_l) = split_felt(selector)
 
-    let (encoded_data: felt*) = alloc()
-    assert encoded_data[0] = TYPE_HASH_HIGH
-    assert encoded_data[1] = TYPE_HASH_LOW
-    assert encoded_data[2] = nonce_h
-    assert encoded_data[3] = nonce_l
-    assert encoded_data[4] = to_h
-    assert encoded_data[5] = to_l
-    assert encoded_data[6] = selector_h
-    assert encoded_data[7] = selector_l
-    assert encoded_data[8] = calldata_hash_h
-    assert encoded_data[9] = calldata_hash_l
-    let (data_hash_l, data_hash_h) = unsafe_keccak(encoded_data, 5 * 32)
+    let (encoded_data: Uint256*) = alloc()
+    assert encoded_data[0] = Uint256(TYPE_HASH_LOW, TYPE_HASH_HIGH)
+    assert encoded_data[1] = Uint256(nonce_l, nonce_h)
+    assert encoded_data[2] = Uint256(to_l, to_h)
+    assert encoded_data[3] = Uint256(selector_l, selector_h)
+    assert encoded_data[4] = Uint256(calldata_hash.low, calldata_hash.high)
+    let (data_hash) = uint256_keccak(encoded_data, 5 * 32)
 
     let prefix = PREFIX
-    let (w0, prefix) = add_prefix(DOMAIN_SEP_HIGH, prefix)
-    let (w1, prefix)= add_prefix(DOMAIN_SEP_LOW, prefix)
-    let (w2, prefix)= add_prefix(data_hash_h, prefix)
-    let (w3, overflow)= add_prefix(data_hash_l, prefix)
-    let (signable_bytes: felt*) = alloc()
-    assert signable_bytes[0] = w0
-    assert signable_bytes[1] = w1
-    assert signable_bytes[2] = w2
-    assert signable_bytes[3] = w3
-    assert signable_bytes[4] = overflow
-    let (low, high) = unsafe_keccak(signable_bytes, 16 + 16 + 16 + 16 + 2)
-    let hashed_msg = Uint256(low, high)
-    return (hashed_msg)
+    let (w1, prefix) = add_prefix(DOMAIN_SEP_HIGH, prefix)
+    let (w0, prefix)= add_prefix(DOMAIN_SEP_LOW, prefix)
+    let (w3, prefix)= add_prefix(data_hash.high, prefix)
+    let (w2, overflow)= add_prefix(data_hash.low, prefix)
+    let (signable_bytes: Uint256*) = alloc()
+    assert signable_bytes[0] = Uint256(w0, w1)
+    assert signable_bytes[1] = Uint256(w2, w3)
+    assert signable_bytes[2] = Uint256(overflow, 0)
+    let (res) = uint256_keccak(signable_bytes, 32 + 32 + 2)
+    return (res)
 end

@@ -32,7 +32,7 @@ print("FULL HASH", "0x" + keccak(payload.signable_bytes(domain=adapter_domain)).
 
 client = Client(net=os.getenv("NODE_URL"), chain=StarknetChainId.TESTNET)
 
-script = Path("./contracts/keccak256.cairo").read_text()
+script = Path("./contracts/eip712.cairo").read_text()
 
 contract = Contract.deploy_sync(
     client=client,
@@ -79,7 +79,6 @@ def u_keccak(values):
     return keccak(b)
 
 
-f = contract.functions["to_integers"]
 
 args = {
     "to": payload["address"],
@@ -89,8 +88,14 @@ args = {
 }
 
 
-def call(values):
-    return contract.functions["uint256_keccak"].call_sync(values)
+def call_keccak(values: list, bytes):
+    missing = 5 - len(values)
+    values.extend([0]*missing)
+    return hex(contract.functions["keccak_view"].call_sync(*values, bytes)[0])
+
+def call_eip712():
+    return contract.functions["get_hash"].call_sync(**args)
+
 
 
 def to_word(v):
