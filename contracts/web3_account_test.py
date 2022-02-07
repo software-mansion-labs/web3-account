@@ -6,18 +6,12 @@ from eth_account import Account
 from eth_account._utils.signing import to_standard_v
 from eth_account.messages import SignableMessage
 from hexbytes import HexBytes
-from starknet_py.net.models import Deploy
-from starkware.cairo.lang.cairo_constants import DEFAULT_PRIME
-from starkware.cairo.lang.compiler.cairo_compile import get_module_reader
-from starkware.cairo.lang.compiler.constants import MAIN_SCOPE
-from starkware.cairo.lang.compiler.preprocessor.preprocess_codes import preprocess_codes
-from starkware.starknet.business_logic.internal_transaction import InternalDeploy
-from starkware.starknet.compiler.compile import assemble_starknet_contract
-from starkware.starknet.compiler.starknet_pass_manager import starknet_pass_manager
 from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.testing.objects import StarknetTransactionExecutionInfo
 from starkware.starknet.testing.starknet import Starknet
+from starkware.starkware_utils.error_handling import StarkException
 
+from contracts.test_utils import deploy_contract_with_hints, to_uint256
 from server.app.eip712 import Payload, adapter_domain
 
 ACCOUNT_FILE = os.path.join(
@@ -31,46 +25,16 @@ ETH_ACCOUNT = Account.from_key(PRIVATE_KEY)
 
 
 @pytest.mark.asyncio
-async def test_web3_account():
+async def test_web3_account_valid_signatures():
     starknet = await Starknet.empty()
-    cairo_path = [os.path.join(os.path.dirname(__file__), "./keccak-cairo/keccak/")]
-
-    module_reader = get_module_reader(cairo_path=cairo_path)
-
-    pass_manager = starknet_pass_manager(
-        prime=DEFAULT_PRIME,
-        read_module=module_reader.read,
-        disable_hint_validation=True,
-    )
-
-    preprocessed = preprocess_codes(
-        codes=[(Path(ACCOUNT_FILE).read_text(), "account.cairo")],
-        pass_manager=pass_manager,
-        main_scope=MAIN_SCOPE,
-    )
-
-    assembled_program = assemble_starknet_contract(
-        preprocessed,
-        main_scope=MAIN_SCOPE,
-        add_debug_info=False,
-        file_contents_for_debug_info={},
-    )
-
-    deploy = InternalDeploy.from_external(Deploy(
-        contract_address_salt=0,
-        contract_definition=assembled_program,
-        constructor_calldata=[int(ETH_ACCOUNT.address, 0)],
-    ), starknet.state.general_config)
 
     target_contract = await starknet.deploy(
         source=TEST_CONTRACT_FILE,
     )
-    account = await starknet.deploy(
-        contract_def=deploy.contract_definition,
-        constructor_calldata=[int(ETH_ACCOUNT.address, 0)],
-    )
 
-    for i in range(5):
+    account = await deploy_contract_with_hints(starknet, Path(ACCOUNT_FILE).read_text(), [int(ETH_ACCOUNT.address, 0)])
+
+    for i in range(4):
         payload = Payload(
             nonce=i,
             address=target_contract.contract_address,
@@ -89,9 +53,48 @@ async def test_web3_account():
         ).invoke(
             signature=[
                 to_standard_v(signed.v),
-                signed.r % 2 ** 128, signed.r // 2 ** 128,
-                signed.s % 2 ** 128, signed.s // 2 ** 128,
+                *to_uint256(signed.r),
+                *to_uint256(signed.s),
             ]
         )
 
         assert invocation.result.response[0] == sum(payload["calldata"])
+
+
+@pytest.mark.asyncio
+async def test_web3_account_invalid_signatures():
+    starknet = await Starknet.empty()
+
+    target_contract = await starknet.deploy(
+        source=TEST_CONTRACT_FILE,
+    )
+
+    # Use a different address
+    account = await deploy_contract_with_hints(
+        starknet,
+        Path(ACCOUNT_FILE).read_text(),
+        [0x7FC37b5571e7128DB2CfA7714eDAA4e9Bedf0883]
+    )
+
+    payload = Payload(
+        nonce=0,
+        address=target_contract.contract_address,
+        selector=get_selector_from_name("sum_three_values"),
+        calldata=[1, 2, 3]
+    )
+    hashed_payload = payload.signable_bytes(adapter_domain)[2:]
+    signed = ETH_ACCOUNT.sign_message(SignableMessage(HexBytes(b"\x01"), HexBytes(b""), HexBytes(hashed_payload)))
+
+    with pytest.raises(StarkException):
+        await account.execute(
+            to=payload["address"],
+            selector=payload["selector"],
+            calldata=payload["calldata"],
+            nonce=payload["nonce"]
+        ).invoke(
+            signature=[
+                to_standard_v(signed.v),
+                *to_uint256(signed.r),
+                *to_uint256(signed.s),
+            ]
+        )

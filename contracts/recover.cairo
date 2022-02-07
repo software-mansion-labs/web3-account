@@ -8,9 +8,8 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.bitwise import bitwise_and, bitwise_xor, bitwise_or
 from starkware.cairo.common.uint256 import Uint256, uint256_sub
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.keccak import unsafe_keccak
+from contracts.keccak256 import uint256_keccak
 
-@view
 func mul_mod{range_check_ptr}(a: BigInt3, b: BigInt3, m: BigInt3) -> (res : BigInt3):
     %{
         from starkware.cairo.common.cairo_secp.secp_utils import pack
@@ -161,8 +160,6 @@ const N_0 = 0x8a03bbfd25e8cd0364141
 const N_1 = 0x3ffffffffffaeabb739abd
 const N_2 = 0xfffffffffffffffffffff
 
-#https://github.com/ethereum/eth-keys/blob/47058caffc6cd267ece14bcc559d45e9b4ba0993/eth_keys/backends/native/ecdsa.py#L141
-
 # (xcubedaxb - y * y) % P = 0
 func assert_y_ok{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(y: BigInt3, xcubedaxb: BigInt3) -> ():
     alloc_locals
@@ -218,7 +215,6 @@ func calc_y{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(v: felt, x: BigInt3)
     return (y)
 end
 
-@view
 func ecdsa_raw_recover{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(hash: BigInt3, v: felt, r: BigInt3, s: BigInt3) -> (
     res: EcPoint
 ):
@@ -256,46 +252,7 @@ func ecdsa_raw_recover{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(hash: Big
     return (res)
 end
 
-@view
-func ecdsa_raw_recover2{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(hash: BigInt3, v: felt, r: BigInt3, s: BigInt3) -> (
-    res: EcPoint, u1: BigInt3, u2: BigInt3, first: EcPoint, second: EcPoint
-):
-    alloc_locals
-
-    assert_not_N_multiplication(r)
-    assert_not_N_multiplication(s)
-
-    let P = BigInt3(P_0, P_1, P_2)
-    let G = EcPoint(
-        BigInt3(GX_0, GX_1, GX_2),
-        BigInt3(GY_0, GY_1, GY_2)
-    )
-    let N = BigInt3(N_0, N_1, N_2)
-
-    let v = v + 27
-    assert_in_range(v, 27, 34)
-
-    let x = r
-    let (y) = calc_y(v, x)
-    let z = hash
-
-    let R = EcPoint(x, y)
-    # u1 = -z/r mod N
-    let (u1) = mul_s_inv(z, r, N)
-    let (u1) = bigint3_sub(N, u1)
-    # u2 = s/r mod N
-    let (u2) = mul_s_inv(s, r, N)
-
-    let (first) = ec_mul(G, u1)
-    let R = EcPoint(x, y)
-    let (second) = ec_mul(R, u2)
-    let (res) = ec_add(first, second)
-
-    return (res, u1, u2, first, second)
-end
-
-@view
-func bigint3_to_words{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value: BigInt3) -> (low: felt, high: felt):
+func bigint3_to_uint256{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value: BigInt3) -> (res: Uint256):
     assert_in_range(value.d0, 0, BASE)
     assert_in_range(value.d1, 0, BASE)
     assert_in_range(value.d2, 0, BASE)
@@ -307,13 +264,12 @@ func bigint3_to_words{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value: Big
 
     let high_d1_shift = 2 ** 42
     let high_d1 = (value.d1 - low_d1) / high_d1_shift
-      let shift = 2 ** 44
+    let shift = 2 ** 44
     let high = value.d2 * shift + high_d1
 
-    return (low, high)
+    return (Uint256(low, high))
 end
 
-@view
 func uint256_to_bigint3{
         range_check_ptr, bitwise_ptr : BitwiseBuiltin*
 }(value: Uint256) -> (res: BigInt3):
@@ -334,7 +290,6 @@ func uint256_to_bigint3{
 end
 
 
-@view
 func calc_eth_address{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(hash: Uint256, v: felt, r: Uint256, s: Uint256) -> (
     address: felt
 ):
@@ -345,18 +300,16 @@ func calc_eth_address{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(hash: Uint
     let (s_bigint3) = uint256_to_bigint3(s)
     let (public_key) = ecdsa_raw_recover(hash_bigint3, v, r_bigint3, s_bigint3)
 
-    let (x_low, x_high) = bigint3_to_words(public_key.x)
-    let (y_low, y_high) = bigint3_to_words(public_key.y)
-    let (inputs: felt*) = alloc()
-    inputs[0] = x_high
-    inputs[1] = x_low
-    inputs[2] = y_high
-    inputs[3] = y_low
-    let (low, high) = unsafe_keccak(inputs, 32 + 32)
+    let (x) = bigint3_to_uint256(public_key.x)
+    let (y) = bigint3_to_uint256(public_key.y)
+    let (inputs: Uint256*) = alloc()
+    assert inputs[0] = x
+    assert inputs[1] = y
+    let (hashed) = uint256_keccak(inputs, 32 + 32)
 
     # Eth address is just lower 20 bytes of keccak(public_key)
     let high_mask = 2**32 - 1
-    let (high_part) = bitwise_and(high_mask, high)
-    let address = high_part * 2 ** 128 + low
+    let (high_part) = bitwise_and(high_mask, hashed.high)
+    let address = high_part * 2 ** 128 + hashed.low
     return (address)
 end

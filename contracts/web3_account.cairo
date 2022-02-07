@@ -14,7 +14,7 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math import assert_in_range, assert_not_equal, assert_not_zero
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.bitwise import bitwise_and
-from contracts.secp.secp_contract import calc_eth_address
+from contracts.recover import calc_eth_address
 from contracts.eip712 import get_hash
 
 struct Message:

@@ -5,7 +5,6 @@ from keccak import keccak256
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.bitwise import bitwise_and
-from starkware.cairo.common.keccak import unsafe_keccak
 from starkware.cairo.common.math import split_felt, unsigned_div_rem, assert_le, assert_in_range
 from starkware.cairo.common.math_cmp import is_nn, is_le
 from starkware.cairo.common.uint256 import Uint256
@@ -131,19 +130,6 @@ func split_uint256s{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(values_len: 
     return (result)
 end
 
-@view
-func split_uint256s_view{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(bytes: felt, value: Uint256) -> (
-    r0: felt, r1: felt, r2: felt, r3: felt
-):
-    alloc_locals
-    let (values: Uint256*) = alloc()
-    assert values[0] = value
-
-    let (result: felt*) = alloc()
-    split_uint256s(bytes, values, result)
-
-    return (result[0], result[1], result[2], result[3])
-end
 
 func handle_leftover{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     uint256_count: felt, rem_bytes: felt,
@@ -181,44 +167,6 @@ func uint256_keccak{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     let (local keccak_ptr_start : felt*) = alloc()
     let keccak_ptr = keccak_ptr_start
     let (local output : felt*) = keccak256{keccak_ptr=keccak_ptr}(inputs, bytes)
-
-    # TODO: finalize?
-
-    let (res) = keccak_result_to_uint256(output[0], output[1], output[2], output[3])
-    return (res)
-end
-
-@view
-func keccak_view{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
-        v0: Uint256,
-        v1: Uint256,
-        v2: Uint256,
-        v3: Uint256,
-        v4: Uint256,
-        bytes: felt,
-    ) -> (res: Uint256):
-    alloc_locals
-
-    let (values: Uint256*) = alloc()
-    assert values[0] = v0
-    assert values[1] = v1
-    assert values[2] = v2
-    assert values[3] = v3
-    assert values[4] = v4
-
-    let (res) = uint256_keccak(values, bytes)
-    return (res)
-end
-
-@view
-func compute_keccak{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
-        input_len : felt, input : felt*, n_bytes : felt) -> (res: Uint256):
-    alloc_locals
-
-    let (local keccak_ptr_start : felt*) = alloc()
-    let keccak_ptr = keccak_ptr_start
-
-    let (local output : felt*) = keccak256{keccak_ptr=keccak_ptr}(input, n_bytes)
 
     let (res) = keccak_result_to_uint256(output[0], output[1], output[2], output[3])
     return (res)
