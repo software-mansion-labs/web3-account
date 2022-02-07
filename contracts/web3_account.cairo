@@ -56,46 +56,6 @@ func constructor{
     return()
 end
 
-
-@external
-func haha{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-        ecdsa_ptr: SignatureBuiltin*,
-        bitwise_ptr : BitwiseBuiltin*
-    }(
-        to: felt,
-        selector: felt,
-        calldata_len: felt,
-        calldata: felt*,
-        nonce: felt
-    ) -> (hash: Uint256, r: Uint256, s: Uint256):
-    alloc_locals
-    let (__fp__, _) = get_fp_and_pc()
-    let (_address) = get_contract_address()
-    let (_current_nonce) = current_nonce.read()
-    # validate nonce
-    assert _current_nonce = nonce
-    local message: Message = Message(
-        _address,
-        to,
-        selector,
-        calldata,
-        calldata_size=calldata_len,
-        _current_nonce
-    )
-    let (signature_len, signature) = get_tx_signature()
-    assert signature_len = 5
-    let v = signature[0]
-    let r = Uint256(signature[1], signature[2])
-    let s = Uint256(signature[3], signature[4])
-    let (hash) = get_hash(to, selector, calldata_len, calldata, nonce)
-    #let (address) = calc_eth_address(hash, v, r, s)
-    #let (stored) = eth_address.read()
-    return (hash, r, s)
-end
-
 @external
 func execute{
         syscall_ptr : felt*,
