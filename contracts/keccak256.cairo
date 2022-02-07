@@ -162,7 +162,6 @@ func handle_leftover{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     let (new_0) = move_right(value.low, 1, 1)
     let (new_1) = move_left(value.low, 0, 1)
     let new_value = new_0 + new_1
-    %{ print("SHIFT", ids.value.low, ids.new_0, ids.new_1, ids.new_value) %}
     let target_index = uint256_count * 4
     assert inputs[target_index] = new_value
     return ()

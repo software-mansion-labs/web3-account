@@ -1,7 +1,6 @@
 # Based on Account from OpenZeppelin
 
 %lang starknet
-%builtins pedersen range_check ecdsa bitwise
 
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_contract_address

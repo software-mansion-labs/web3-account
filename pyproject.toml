@@ -17,8 +17,7 @@ python = ">=3.7.12, <3.10"
 uvicorn = "^0.16.0"
 jsonrpcserver = "^5.0.5"
 fastapi = "^0.71.0"
-web3 = "^5.26.0"
-"starknet.py" = "^0.1.5-alpha.0"
+"starknet.py" = "^0.1.6-alpha.0"
 eip712-structs = "^1.1.0"
 pytest = "^6.2.5"
 eth-abi = "^2.1.1"
@@ -44,7 +43,7 @@ shell = """
     starknet-devnet --host localhost --port 5001 &
     DEVNET_PID=$!
     sleep 1
-    python contracts/setup.py $eth_address
+    CAIRO_PATH="./contracts/keccak-cairo/keccak:./contracts/cairo-contracts/" python contracts/setup.py $eth_address
     wait $DEVNET_PID
 """
 args = [

@@ -14,10 +14,7 @@ eth_address = int(sys.argv[1], 0)
 client = Client(net=os.getenv("NODE_URL"), chain=StarknetChainId.TESTNET)
 
 account_script = Path("./contracts/ETH_Account.cairo").read_text()
-erc_20_scripts = {
-    "ERC_20.cairo": Path("./contracts/token/ERC20.cairo").read_text(),
-    # "ERC20_base": Path('./contracts/token/ERC20_base.cairo').read_text(),
-}
+erc_20_scripts = Path("./contracts/cairo-contracts/contracts/token/ERC20.cairo").read_text()
 ACCOUNT_ADDRESS_SALT = int(os.getenv("ACCOUNT_ADDRESS_SALT"))
 
 account_hash = Contract.compute_contract_hash(compilation_source=account_script)
