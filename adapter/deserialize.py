@@ -10,7 +10,7 @@ from eth_utils import to_bytes
 from hexbytes import HexBytes
 from rlp.sedes import Binary, big_endian_int, binary
 
-from server.app.eip712 import to_message_hash
+from eip712 import to_message_hash
 
 
 class Transaction(rlp.Serializable):

@@ -7,12 +7,12 @@ from jsonrpcserver import Result, Success, async_dispatch, method
 from starknet_py.net import Client
 from starknet_py.net.models import StarknetChainId
 
-from server.app.deserialize import (
+from deserialize import (
     decode_eip712,
     decode_raw_tx,
 )
-from server.app.eth_account import get_eth_account_contract
-from server.app.settings import NODE_URL, CHAIN_ID
+from eth_account import get_eth_account_contract
+from settings import NODE_URL, CHAIN_ID
 
 Block = Union[str, int]
 

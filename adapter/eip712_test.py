@@ -1,7 +1,7 @@
 # pylint: skip-file
 from eip712_structs import make_domain
 
-from server.app.eip712 import Payload, to_message_hash
+from eip712 import Payload, to_message_hash
 
 payload_args = dict(
     nonce=0,

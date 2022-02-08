@@ -5,7 +5,7 @@ from eip712_structs import EIP712Struct, Uint, make_domain, Array
 
 from eth_utils import keccak
 
-from server.app.settings import CHAIN_ID
+from settings import CHAIN_ID
 
 
 class Payload(EIP712Struct):
