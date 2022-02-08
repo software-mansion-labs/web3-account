@@ -13,8 +13,8 @@ from contracts.secp.secp_ec import EcPoint, ec_add, ec_mul
 
 from starkware.cairo.common.math import assert_nn_le, assert_not_zero
 
-# Computes x * s^(-1) modulo the size of the elliptic curve (N).
-# MODIFIED!
+# Computes x * s^(-1) modulo n
+# This is the only modified file from cairo examples
 func mul_s_inv{range_check_ptr}(x : BigInt3, s : BigInt3, n: BigInt3) -> (res : BigInt3):
     %{
         from starkware.cairo.common.cairo_secp.secp_utils import pack

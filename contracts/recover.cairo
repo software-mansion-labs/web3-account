@@ -10,7 +10,8 @@ from starkware.cairo.common.uint256 import Uint256, uint256_sub
 from starkware.cairo.common.alloc import alloc
 from contracts.keccak256 import uint256_keccak
 
-func mul_mod{range_check_ptr}(a: BigInt3, b: BigInt3, m: BigInt3) -> (res : BigInt3):
+# Performs (a * b) % m and returns normalized BigInt3
+func mul_mod{range_check_ptr}(a : BigInt3, b : BigInt3, m : BigInt3) -> (res : BigInt3):
     %{
         from starkware.cairo.common.cairo_secp.secp_utils import pack
         from starkware.python.math_utils import div_mod, safe_div
@@ -50,7 +51,7 @@ func mul_mod{range_check_ptr}(a: BigInt3, b: BigInt3, m: BigInt3) -> (res : BigI
     return (res)
 end
 
-@view
+# Performs (a - b) % m and returns normalized BigInt3
 func bigint3_sub{range_check_ptr}(a : BigInt3, b : BigInt3) -> (res : BigInt3):
     %{
         from starkware.cairo.common.cairo_secp.secp_utils import pack
@@ -81,26 +82,27 @@ func bigint3_sub{range_check_ptr}(a : BigInt3, b : BigInt3) -> (res : BigInt3):
     return (res=res)
 end
 
-@view
+# Performs a % m and returns normalized BigInt3
 func mod{range_check_ptr}(a : BigInt3, m : BigInt3) -> (res : BigInt3):
-    let one = BigInt3(1,0,0)
+    let one = BigInt3(1, 0, 0)
     let (result) = mul_mod(a, one, m)
     return (result)
 end
 
-@view
-func add_mod{range_check_ptr}(a : BigInt3, b: BigInt3, m : BigInt3) -> (res : BigInt3):
+func add_mod{range_check_ptr}(a : BigInt3, b : BigInt3, m : BigInt3) -> (res : BigInt3):
     let s_0 = a.d0 + b.d0
     let s_1 = a.d1 + b.d1
     let s_2 = a.d2 + b.d2
     let sum = BigInt3(s_0, s_1, s_2)
+    # This works because mod normalizes BigInt3
     let (res) = mod(sum, m)
 
     return (res)
 end
 
-@view
-func pow_mod{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(a : BigInt3, p: BigInt3, m : BigInt3) -> (res : BigInt3):
+# Performs (a ** p) % m
+func pow_mod{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
+        a : BigInt3, p : BigInt3, m : BigInt3) -> (res : BigInt3):
     alloc_locals
     # p == 1
     if p.d0 == 1:
@@ -112,24 +114,24 @@ func pow_mod{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(a : BigInt3, p: Big
         end
     end
 
-
     let (is_odd) = bitwise_and(p.d0, 1)
     if is_odd == 1:
-        let one = BigInt3(1,0,0)
+        let one = BigInt3(1, 0, 0)
         let (new_p) = bigint3_sub(p, one)
         let (rest) = pow_mod(a, new_p, m)
         let (res) = mul_mod(a, rest, m)
         return (res)
     end
 
-    let two = BigInt3(2,0,0)
+    let two = BigInt3(2, 0, 0)
     let (half_p) = mul_s_inv(p, two, m)
-    let (half_product) = pow_mod(a, half_p, m)
-    let (res) = mul_mod(half_product, half_product, m)
+    let (multiplier) = pow_mod(a, half_p, m)
+    let (res) = mul_mod(multiplier, multiplier, m)
     return (res)
 end
 
 const A = 0
+
 # B = 7
 const B_0 = 7
 const B_1 = 0
@@ -161,7 +163,7 @@ const N_1 = 0x3ffffffffffaeabb739abd
 const N_2 = 0xfffffffffffffffffffff
 
 # (xcubedaxb - y * y) % P = 0
-func assert_y_ok{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(y: BigInt3, xcubedaxb: BigInt3) -> ():
+func assert_y_ok{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(y : BigInt3, xcubedaxb : BigInt3) -> ():
     alloc_locals
     let P = BigInt3(P_0, P_1, P_2)
     let two = BigInt3(2, 0, 0)
@@ -174,22 +176,23 @@ func assert_y_ok{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(y: BigInt3, xcu
 end
 
 # (s % N) != 0
-func assert_not_N_multiplication{range_check_ptr}(value: BigInt3) -> ():
+func assert_not_N_multiplication{range_check_ptr}(value : BigInt3) -> ():
+    alloc_locals
     let N = BigInt3(N_0, N_1, N_2)
     let (result) = mod(value, N)
     if result.d0 == 0:
         if result.d1 == 0:
             if result.d2 == 0:
                 # Result is 0, fail
-                assert result.d2 = 1
+                assert 1 = 0
             end
         end
     end
 
-   return ()
+    return ()
 end
 
-func calc_y{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(v: felt, x: BigInt3) -> (y: BigInt3):
+func calc_y{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(v : felt, x : BigInt3) -> (y : BigInt3):
     alloc_locals
     let P = BigInt3(P_0, P_1, P_2)
     let PD = BigInt3(PD_0, PD_1, PD_2)
@@ -215,19 +218,15 @@ func calc_y{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(v: felt, x: BigInt3)
     return (y)
 end
 
-func ecdsa_raw_recover{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(hash: BigInt3, v: felt, r: BigInt3, s: BigInt3) -> (
-    res: EcPoint
-):
+func ecdsa_raw_recover{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
+        hash : BigInt3, v : felt, r : BigInt3, s : BigInt3) -> (res : EcPoint):
     alloc_locals
 
     assert_not_N_multiplication(r)
     assert_not_N_multiplication(s)
 
     let P = BigInt3(P_0, P_1, P_2)
-    let G = EcPoint(
-        BigInt3(GX_0, GX_1, GX_2),
-        BigInt3(GY_0, GY_1, GY_2)
-    )
+    let G = EcPoint(BigInt3(GX_0, GX_1, GX_2), BigInt3(GY_0, GY_1, GY_2))
     let N = BigInt3(N_0, N_1, N_2)
 
     let v = v + 27
@@ -252,7 +251,8 @@ func ecdsa_raw_recover{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(hash: Big
     return (res)
 end
 
-func bigint3_to_uint256{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value: BigInt3) -> (res: Uint256):
+func bigint3_to_uint256{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value : BigInt3) -> (
+        res : Uint256):
     assert_in_range(value.d0, 0, BASE)
     assert_in_range(value.d1, 0, BASE)
     assert_in_range(value.d2, 0, BASE)
@@ -270,13 +270,12 @@ func bigint3_to_uint256{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value: B
     return (Uint256(low, high))
 end
 
-func uint256_to_bigint3{
-        range_check_ptr, bitwise_ptr : BitwiseBuiltin*
-}(value: Uint256) -> (res: BigInt3):
-    assert_in_range(value.low, 0, 2**128)
-    assert_in_range(value.high, 0, 2**128)
+func uint256_to_bigint3{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value : Uint256) -> (
+        res : BigInt3):
+    assert_in_range(value.low, 0, 2 ** 128)
+    assert_in_range(value.high, 0, 2 ** 128)
 
-    let d0_mask = 2**86-1
+    let d0_mask = 2 ** 86 - 1
     let (d0) = bitwise_and(value.low, d0_mask)
 
     let d1_low = (value.low - d0) / 2 ** 86
@@ -289,10 +288,8 @@ func uint256_to_bigint3{
     return (BigInt3(d0, d1, d2))
 end
 
-
-func calc_eth_address{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(hash: Uint256, v: felt, r: Uint256, s: Uint256) -> (
-    address: felt
-):
+func calc_eth_address{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
+        hash : Uint256, v : felt, r : Uint256, s : Uint256) -> (address : felt):
     alloc_locals
 
     let (hash_bigint3) = uint256_to_bigint3(hash)
@@ -302,13 +299,13 @@ func calc_eth_address{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(hash: Uint
 
     let (x) = bigint3_to_uint256(public_key.x)
     let (y) = bigint3_to_uint256(public_key.y)
-    let (inputs: Uint256*) = alloc()
+    let (inputs : Uint256*) = alloc()
     assert inputs[0] = x
     assert inputs[1] = y
     let (hashed) = uint256_keccak(inputs, 32 + 32)
 
     # Eth address is just lower 20 bytes of keccak(public_key)
-    let high_mask = 2**32 - 1
+    let high_mask = 2 ** 32 - 1
     let (high_part) = bitwise_and(high_mask, hashed.high)
     let address = high_part * 2 ** 128 + hashed.low
     return (address)
