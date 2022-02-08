@@ -10,6 +10,7 @@ code = """
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.uint256 import Uint256
 from contracts.keccak256 import uint256_keccak
+from starkware.cairo.common.alloc import alloc
 
 @view
 func uint256_keccak_view{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
@@ -40,7 +41,11 @@ def keccak256(bytes):
     return int.from_bytes(k.digest(), "big")
 
 @pytest.mark.asyncio
-async def uint256_keccak_view():
+async def test_uint256_keccak():
+    starknet = await Starknet.empty()
+    account = await deploy_contract_with_hints(starknet, code, [])
+
+    # 160 bytes
     values = [
         2 ** 256 - 19,
         1,
@@ -49,12 +54,25 @@ async def uint256_keccak_view():
         2 ** 128 + 15
     ]
     expected = keccak256(b"".join([v.to_bytes(32, "big") for v in values]))
-    starknet = await Starknet.empty()
-
-    account = await deploy_contract_with_hints(starknet, code, [])
 
     call = await account.uint256_keccak_view(
         *[to_uint256(v) for v in values], 32*5
+    ).call()
+
+    assert call.result[0] == to_uint256(expected)
+
+    # 34 bytes
+    values = [
+        2 ** 256 - 19,
+        1234,
+        0,
+        0,
+        0
+    ]
+    expected = keccak256(b"".join([values[0].to_bytes(32, "big"), values[1].to_bytes(2, "big")]))
+
+    call = await account.uint256_keccak_view(
+        *[to_uint256(v) for v in values], 32+2
     ).call()
 
     assert call.result[0] == to_uint256(expected)
