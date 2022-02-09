@@ -4,8 +4,8 @@ from starknet_py.contract import Contract
 from starknet_py.net import Client
 from starknet_py.net.models import compute_address
 
-from eth_account_abi import eth_account_abi
-from settings import ACCOUNT_CONTRACT_HASH, ACCOUNT_ADDRESS_SALT
+from adapter.eth_account_abi import eth_account_abi
+from adapter.settings import ACCOUNT_CONTRACT_HASH, ACCOUNT_ADDRESS_SALT
 
 
 async def get_eth_account_contract(client: Client, eth_address: str) -> Contract:

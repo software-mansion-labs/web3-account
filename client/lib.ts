@@ -4,8 +4,20 @@ import {computeHashOnElements} from "starknet/utils/hash";
 import {AddTransactionResponse, Provider, Transaction} from "starknet";
 import {getSelectorFromName} from "starknet/utils/stark";
 import {serialize} from "@ethersproject/transactions";
-import {toBN} from "starknet/utils/number";
+import {hexToDecimalString, toBN} from "starknet/utils/number";
 import {BN} from "ethereumjs-util";
+import contract_deploy_tx from "./web3_account.json"
+
+const contractHash = "0x" + BigInt(process.env.ACCOUNT_CONTRACT_HASH).toString(16);
+const contractSalt = "0x" + BigInt(process.env.ACCOUNT_ADDRESS_SALT).toString(16);
+
+export const computeAddress = (ethAddress: string) => computeHashOnElements([
+    "0x" + new Buffer("STARKNET_CONTRACT_ADDRESS", "ascii").toString("hex"),
+    0,
+    contractSalt,
+    contractHash,
+    computeHashOnElements([ethAddress])
+])
 
 interface ChainInfo {
     chainId: string,
@@ -84,12 +96,6 @@ class MetamaskClient {
         }
     }
 
-    // Handling changes in network is problematic, useStarknet has minimal overhead
-    protected withStarknet = <Args extends Array<any>, Result>(fn: (...args: Args) => Promise<Result>) => async (...args: Args): Promise<Result> => {
-        await this.useStarknet();
-        return fn(...args);
-    };
-
     protected switch = () => this.request("wallet_switchEthereumChain", {chainId: this.chainConfig.chainId});
 
     request = (method: string, ...params: any[]) => this.provider.request({method, params})
@@ -106,9 +112,11 @@ type ProviderOptions =
 };
 
 export class EthAccountProvider extends Provider {
+    public readonly starknetAddress: string;
+
     constructor(optionsOrProvider: ProviderOptions | Provider, private client: MetamaskClient, public readonly address: string) {
         super(optionsOrProvider)
-
+        this.starknetAddress = computeAddress(this.address);
     }
 
     public override async addTransaction(transaction: Transaction): Promise<AddTransactionResponse> {
@@ -120,7 +128,7 @@ export class EthAccountProvider extends Provider {
             throw Error("EthAccountProvider.addTransaction doesn't support adding signatures.")
         }
 
-        const nonce = transaction.nonce ? toBN(transaction.nonce) : this.fetchNonce();
+        const nonce = transaction.nonce ? toBN(transaction.nonce) : await this.fetchNonce();
 
         const payload = {
             address: toBN(transaction.contract_address),
@@ -133,6 +141,8 @@ export class EthAccountProvider extends Provider {
             payload.selector.toArrayLike(Buffer, "big", 32),
             ...payload.calldata.map(v => v.toArrayLike(Buffer, "big", 32)),
         ]);
+
+        await this.client.useStarknet();
         const signature = await this.signMessage(payload);
         const ethTx = serialize({
             data: transactionData,
@@ -145,13 +155,26 @@ export class EthAccountProvider extends Provider {
         };
     }
 
+    public isAccountDeployed = async (): Promise<boolean> => {
+        const code = await this.getCode(this.starknetAddress);
+        return !!code.bytecode.length
+    }
+
+    public deployAccount = async (): Promise<AddTransactionResponse> => {
+        return this.addTransaction({
+          ...contract_deploy_tx,
+          type: 'DEPLOY',
+          contract_address_salt: contractSalt,
+          constructor_calldata: [hexToDecimalString(this.address)],
+        });
+    }
+
     fetchNonce = async (): Promise<BN> => {
         const response = await this.callContract({
-            contract_address: computeAddress(this.address),
+            contract_address: this.starknetAddress,
             entry_point_selector: getSelectorFromName("get_nonce"),
             calldata: [],
         });
-        console.log("RESPONSE", response)
         return toBN(response.result[0]);
     }
 
@@ -173,10 +196,15 @@ export class StarknetAdapter extends MetamaskClient {
         super(metamask, options.adapterChain);
     }
 
-    getAccounts = this.withStarknet(async (): Promise<EthAccountProvider[]> => {
+    requestAccounts = async (): Promise<EthAccountProvider[]> => {
         const accounts = await this.request("eth_requestAccounts") as string[];
         return accounts.map(a => new EthAccountProvider(this.options.starknet, this, a));
-    });
+    };
+
+    getAccounts = async (): Promise<EthAccountProvider[] | undefined> => {
+        const accounts = await this.request("eth_accounts") as string[];
+        return accounts.map(a => new EthAccountProvider(this.options.starknet, this, a));
+    };
 
     addAccountsChangeHandler = (handler: AccountsChangeHandler): HandlerRemover => {
         const eventHandler = (accounts: string[]) => {
@@ -204,14 +232,3 @@ export const getAdapter = async (options: AdapterOptions = {starknet: {baseUrl: 
 
     return new StarknetAdapter(options, provider);
 }
-
-const contractHash = "0x" + BigInt(process.env.ACCOUNT_CONTRACT_HASH).toString(16);
-const contractSalt = "0x" + BigInt(process.env.ACCOUNT_ADDRESS_SALT).toString(16);
-
-export const computeAddress = (ethAddress: string) => computeHashOnElements([
-    "0x" + new Buffer("STARKNET_CONTRACT_ADDRESS", "ascii").toString("hex"),
-    0,
-    contractSalt,
-    contractHash,
-    computeHashOnElements([ethAddress])
-])

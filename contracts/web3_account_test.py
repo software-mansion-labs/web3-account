@@ -12,7 +12,7 @@ from starkware.starknet.testing.starknet import Starknet
 from starkware.starkware_utils.error_handling import StarkException
 
 from contracts.test_utils import deploy_contract_with_hints, to_uint256
-from server.app.eip712 import Payload, adapter_domain
+from adapter.eip712 import Payload, adapter_domain
 
 ACCOUNT_FILE = os.path.join(
     os.path.dirname(__file__), "./web3_account.cairo")

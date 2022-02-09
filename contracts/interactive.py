@@ -6,7 +6,7 @@ from starknet_py.contract import Contract
 from starknet_py.net import Client
 from starknet_py.net.models import StarknetChainId
 
-from server.app.eth_account import compute_eth_account_address
+from adapter.eth_account import compute_eth_account_address
 
 if __name__ != "__main__":
     raise Exception("Must be run as a script")
@@ -17,11 +17,8 @@ client = Client(net="http://localhost:5001", chain=StarknetChainId.TESTNET)
 
 account_address = compute_eth_account_address(eth_address)
 print("ADDRESS", account_address)
-er20_hash = Contract.compute_contract_hash(
-    Path("./contracts/token/ERC20.cairo").read_text()
-)
 erc20_address = Contract.compute_address(
-    compilation_source=Path("./contracts/token/ERC20.cairo").read_text(),
+    compilation_source=Path("./contracts/cairo-contracts/contracts/token/ERC20.cairo").read_text(),
     constructor_args={
         "name": "COIN",
         "symbol": "COIN",

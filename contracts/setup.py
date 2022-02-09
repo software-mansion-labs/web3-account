@@ -1,11 +1,14 @@
+import json
 import os
 import sys
 from pathlib import Path
 
 from starknet_py.contract import Contract
 from starknet_py.net import Client
-from starknet_py.net.models import StarknetChainId
+from starknet_py.net.models import StarknetChainId, Deploy, Transaction
+from starknet_py.utils.compiler.starknet_compile import starknet_compile
 from starkware.starknet.public.abi import get_selector_from_name
+from starkware.starknet.services.api.contract_definition import ContractDefinition
 
 if __name__ != "__main__":
     raise Exception("Not run as a script")
@@ -19,6 +22,17 @@ ACCOUNT_ADDRESS_SALT = int(os.getenv("ACCOUNT_ADDRESS_SALT"))
 
 account_hash = Contract.compute_contract_hash(compilation_source=account_script)
 print("ACCOUNT CONTRACT HASH:", account_hash)
+
+
+# Save contract definiton
+# Starknet.js compresses program in a different way
+definition = ContractDefinition.loads(starknet_compile(account_script))
+dump = Transaction.Schema().dump(obj=Deploy(
+    contract_address_salt=ACCOUNT_ADDRESS_SALT,
+    contract_definition=definition,
+    constructor_calldata=[],
+))
+Path("client/web3_account.json").write_text(json.dumps(dump))
 
 account = Contract.deploy_sync(
     client=client,

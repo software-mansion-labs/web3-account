@@ -7,7 +7,7 @@ from starknet_py.contract import Contract
 from starknet_py.net import Client
 from starknet_py.net.models import StarknetChainId
 
-from server.app.eip712 import Payload, to_message_hash
+from adapter.app.eip712 import Payload, to_message_hash
 
 if __name__ != "__main__":
     raise Exception("Not run as a script")
