@@ -117,7 +117,7 @@ async def eth_sendRawTransaction(transaction: str) -> str:
 
 @method
 async def eth_getTransactionCount(address, _block_number):
-    contract = get_eth_account_contract(client, address)
+    contract = await get_eth_account_contract(client, address)
     response = await contract.functions["get_nonce"].call()
     result = response[0]
     return Success(hex(result))
