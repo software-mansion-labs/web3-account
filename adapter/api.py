@@ -4,6 +4,7 @@ import logging
 
 from eth_account._utils.signing import to_standard_v
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from jsonrpcserver import Result, Success, async_dispatch, method
 from starknet_py.net import Client
 from starknet_py.net.models import StarknetChainId
@@ -123,6 +124,13 @@ async def eth_getTransactionCount(address, _block_number):
 
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.post("/")

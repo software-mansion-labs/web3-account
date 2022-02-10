@@ -155,6 +155,8 @@ export class EthAccountProvider extends Provider {
         };
     }
 
+    public switchChain = this.client.useStarknet;
+
     public isAccountDeployed = async (): Promise<boolean> => {
         const code = await this.getCode(this.starknetAddress);
         return !!code.bytecode.length

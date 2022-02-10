@@ -22,7 +22,7 @@ import {trackTxInProgress} from "./hooks";
 
 const erc20Address = "0x2a602026ace8eff8a2d95a9c04b76f8cb2bff6c61cee5f601b6229773586763";
 
-// There are 18 decimal places in the token
+// Token has 18 decimal places
 const decimalShift = new BN(10).pow(new BN(18));
 
 const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({lib}) => {
@@ -38,8 +38,8 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({lib}) => {
         }
     );
 
-    const [address, setAddress] = useState("0xf784644137E0f5454A877d48c71F94d50ad6D620");
-    const [amount, setAmount] = useState("123")
+    const [address, setAddress] = useState("");
+    const [amount, setAmount] = useState("")
     const [loading, setLoading] = useState(false);
 
 
@@ -83,7 +83,6 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({lib}) => {
 
     return (
         <Stack gap={2}>
-            {lib.starknetAddress}
             <Typography variant="h3">Token wallet</Typography>
             <Typography>Your balance: {balance ? balance.toString() :
                 <Skeleton style={{display: "inline-block", width: 100}}/>}</Typography>
@@ -118,8 +117,8 @@ const CreateAccountForm: React.FC<{ lib: EthAccountProvider, onCreate: () => voi
 
         setLoading(true);
 
-        lib.deployAccount()
-            .then(trackTx)
+        Promise.all([lib.switchChain(), lib.deployAccount()])
+            .then(([, tx]) => trackTx(tx))
             .catch(console.error)
             .finally(() => setLoading(false));
     }
@@ -127,7 +126,7 @@ const CreateAccountForm: React.FC<{ lib: EthAccountProvider, onCreate: () => voi
     return (
         <Stack gap={1} component="form" onSubmit={createAccount}>
             <Typography variant="h6">It seems that you haven't created an account on StarkNet yet.</Typography>
-            <Typography>In order to send any transactions you need to create an account first.</Typography>
+            <Typography>In order to send any transactions you need to create an account first. We'll also ask you to add our adapter to MetaMask if it doesn't exist there.</Typography>
             <LoadingButton loading={!!txInProgress || loading} type="submit" variant="contained">Create my account</LoadingButton>
         </Stack>)
 }
@@ -163,8 +162,7 @@ const App = () => {
     }, [adapter])
 
 
-    if (loadingAdapter || isDeployed === undefined) {
-
+    if (loadingAdapter || (lib && isDeployed === undefined)) {
         return <Grid
             container
             spacing={0}
@@ -191,7 +189,6 @@ const App = () => {
                 </Button>
             </DialogActions>
         </Dialog>);
-
     }
 
     return isDeployed ? <TokenWallet lib={lib}/> : <CreateAccountForm lib={lib} onCreate={() => setIsDeployed(true)}/>;

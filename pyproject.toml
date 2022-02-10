@@ -36,11 +36,6 @@ lint = "pylint adapter"
 format = "black ."
 test = "pytest adapter"
 test_contracts = "pytest contracts/*_test.py"
-compile_contract = { shell = """
-    CAIRO_PATH="./contracts/keccak-cairo/keccak:./contracts/cairo-contracts/" \
-    starknet-compile contracts/web3_account.cairo --disable_hint_validation --no_debug_info \
-    --output client/web3_account.json
-"""}
 [tool.poe.tasks.devnet]
 shell = """
     trap "exit" INT TERM
