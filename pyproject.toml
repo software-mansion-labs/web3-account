@@ -36,7 +36,7 @@ devserver = "uvicorn adapter.api:app --reload --ssl-keyfile=./key.pem --ssl-cert
 lint = "pylint adapter"
 format = "black ."
 test = "pytest adapter"
-test_contracts = "pytest contracts/*_test.py"
+test_contracts = {shell = "PYTHONPATH=$PWD pytest contracts/*_test.py"}
 [tool.poe.tasks.devnet]
 shell = """
     trap "exit" INT TERM
