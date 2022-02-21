@@ -1,4 +1,5 @@
 import pytest
+from starkware.starknet.testing.objects import StarknetContractCall
 from starkware.starknet.testing.starknet import Starknet
 from Crypto.Hash import keccak
 
@@ -59,6 +60,8 @@ async def test_uint256_keccak():
         *[to_uint256(v) for v in values], 32*5
     ).call()
 
+    info: StarknetContractCall = call.call_info
+    print("KECCAK 160 CAIRO USAGE", info.cairo_usage)
     assert call.result[0] == to_uint256(expected)
 
     # 34 bytes
@@ -75,4 +78,6 @@ async def test_uint256_keccak():
         *[to_uint256(v) for v in values], 32+2
     ).call()
 
+    info: StarknetContractCall = call.call_info
+    print("KECCAK 34 bytes", info.cairo_usage)
     assert call.result[0] == to_uint256(expected)

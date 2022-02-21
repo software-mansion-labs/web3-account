@@ -24,7 +24,7 @@ account_hash = Contract.compute_contract_hash(compilation_source=account_script)
 print("ACCOUNT CONTRACT HASH:", account_hash)
 
 
-# Save contract definiton
+# Save contract definition
 # Starknet.js compresses program in a different way
 definition = ContractDefinition.loads(starknet_compile(account_script))
 dump = Transaction.Schema().dump(obj=Deploy(

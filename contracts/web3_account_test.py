@@ -7,7 +7,7 @@ from eth_account._utils.signing import to_standard_v
 from eth_account.messages import SignableMessage
 from hexbytes import HexBytes
 from starkware.starknet.public.abi import get_selector_from_name
-from starkware.starknet.testing.objects import StarknetTransactionExecutionInfo
+from starkware.starknet.testing.objects import StarknetTransactionExecutionInfo, StarknetContractCall
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starkware_utils.error_handling import StarkException
 
@@ -42,6 +42,7 @@ async def test_web3_account_valid_signatures():
             calldata=[i, i + 1, i + 2]
         )
         hashed_payload = payload.signable_bytes(adapter_domain)[2:]
+        print(payload.signable_bytes(adapter_domain).hex())
         # Remove header and version
         signed = ETH_ACCOUNT.sign_message(SignableMessage(HexBytes(b"\x01"), HexBytes(b""), HexBytes(hashed_payload)))
 
@@ -58,6 +59,8 @@ async def test_web3_account_valid_signatures():
             ]
         )
 
+        info: StarknetContractCall = invocation.call_info
+        print(f"web3 account execute {i}", info.cairo_usage)
         assert invocation.result.response[0] == sum(payload["calldata"])
 
 

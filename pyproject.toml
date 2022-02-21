@@ -33,15 +33,16 @@ starknet-devnet = "^0.1.12"
 devclient = "yarn --cwd client dev"
 devdemo = "yarn --cwd client devdemo"
 devserver = "uvicorn adapter.api:app --reload --ssl-keyfile=./key.pem --ssl-certfile=./cert.pem --log-level=debug"
+devserver_http = "uvicorn adapter.api:app --reload --log-level=debug"
 lint = "pylint adapter"
 format = "black ."
 test = "pytest adapter"
-test_contracts = {shell = "PYTHONPATH=$PWD pytest contracts/*_test.py"}
+test_contracts = {shell = "PYTHONPATH=$PWD pytest -s contracts/*_test.py"}
 [tool.poe.tasks.devnet]
 shell = """
     trap "exit" INT TERM
     trap "kill 0" EXIT
-    starknet-devnet --host localhost --port 5001 &
+    starknet-devnet --host localhost --port 5001 --host 0.0.0.0 &
     DEVNET_PID=$!
     sleep 1
     CAIRO_PATH="./contracts/keccak-cairo/keccak:./contracts/cairo-contracts/" python contracts/setup.py $eth_address

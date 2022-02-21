@@ -20,7 +20,7 @@ import {BN} from "ethereumjs-util";
 import {trackTxInProgress} from "./hooks";
 
 
-const erc20Address = "0x2a602026ace8eff8a2d95a9c04b76f8cb2bff6c61cee5f601b6229773586763";
+const erc20Address = "0x4a02f5b4025f69511996d205321b230fb92bf43818cb173cf38c014f9f11f9a";
 
 // Token has 18 decimal places
 const decimalShift = new BN(10).pow(new BN(18));
@@ -117,6 +117,8 @@ const CreateAccountForm: React.FC<{ lib: EthAccountProvider, onCreate: () => voi
 
         setLoading(true);
 
+        lib.switchChain().catch(e => alert(JSON.stringify(e, null, 2)))
+
         Promise.all([lib.switchChain(), lib.deployAccount()])
             .then(([, tx]) => trackTx(tx))
             .catch(console.error)
@@ -152,6 +154,10 @@ const App = () => {
         lib.isAccountDeployed().then(setIsDeployed).catch(console.error)
     }, [lib]);
 
+    useSWR(lib && "xxxxdd", async () => {
+        await lib.switchChain();
+    })
+
     const requestAccount = useCallback(async () => {
         const accounts = await adapter.requestAccounts();
         if (accounts && accounts[0]) {
@@ -159,7 +165,7 @@ const App = () => {
         } else {
             alert("You don't have an account, please create it first")
         }
-    }, [adapter])
+    }, [adapter]);
 
 
     if (loadingAdapter || (lib && isDeployed === undefined)) {
@@ -170,7 +176,9 @@ const App = () => {
             alignItems="center"
             justifyContent="center"
             style={{minHeight: '100vh'}}
-        ><CircularProgress/></Grid>
+        >
+            <CircularProgress/>
+        </Grid>
     }
 
     if (!lib) {

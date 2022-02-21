@@ -25,19 +25,20 @@ interface ChainInfo {
     rpcUrls: string[],
 }
 
-const rpcUrl = "https://localhost:8000";
+const rpcUrl = "https://a242-83-22-41-123.ngrok.io";
+const chainName = process.env.DOMAIN_NAME;
 
 const chainId = process.env.CHAIN_ID;
 const chain: ChainInfo = {
     chainId,
-    chainName: "Starknet",
+    chainName,
     rpcUrls: [rpcUrl]
 }
 
 export const typedData = {
     domain: {
         chainId: chainId,
-        name: 'Starknet adapter',
+        name: chainName,
         version: '1',
     },
 
@@ -85,7 +86,9 @@ class MetamaskClient {
 
     public useStarknet = async () => {
         try {
-            await this.switch();
+            await this.request("wallet_addEthereumChain", this.chainConfig);
+            const r = await this.switch();
+            alert("SWITCHED " + r)
         } catch (e) {
             if ("code" in e && e.code === UNRECOGNIZED_CHAIN) {
                 await this.request("wallet_addEthereumChain", this.chainConfig);
@@ -144,6 +147,7 @@ export class EthAccountProvider extends Provider {
 
         await this.client.useStarknet();
         const signature = await this.signMessage(payload);
+        console.log("SIGNATURE", signature)
         const ethTx = serialize({
             data: transactionData,
             nonce: nonce.toNumber(),
@@ -180,9 +184,15 @@ export class EthAccountProvider extends Provider {
         return toBN(response.result[0]);
     }
 
-    signMessage = (payload: Payload): Promise<string> => this.client.request(
-        "eth_signTypedData_v4", this.address, JSON.stringify(makeData(payload))
-    ) as Promise<string>;
+    signMessage = (payload: Payload): Promise<string> => {
+        const data = makeData(payload);
+        // const {chainId, ...domain} = data.domain;
+        // data.domain = domain;
+        console.log(JSON.stringify(data, null, 2))
+        return this.client.request(
+            "eth_signTypedData_v4", this.address, JSON.stringify(data)
+        ) as Promise<string>;
+    };
 }
 
 type AccountsChangeHandler = (accounts: EthAccountProvider[]) => void;
