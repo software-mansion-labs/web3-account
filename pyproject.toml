@@ -21,6 +21,7 @@ fastapi = "^0.71.0"
 eip712-structs = "^1.1.0"
 pytest = "^6.2.5"
 eth-abi = "^2.1.1"
+cairo-lang = "0.7.0"
 
 [tool.poetry.dev-dependencies]
 poethepoet = "^0.12.0"
