@@ -17,11 +17,11 @@ python = ">=3.7.12, <3.10"
 uvicorn = "^0.16.0"
 jsonrpcserver = "^5.0.5"
 fastapi = "^0.71.0"
-"starknet.py" = "^0.1.6-alpha.0"
 eip712-structs = "^1.1.0"
 pytest = "^6.2.5"
 eth-abi = "^2.1.1"
 cairo-lang = "0.7.0"
+"starknet.py" = "^0.1.6-alpha.0"
 
 [tool.poetry.dev-dependencies]
 poethepoet = "^0.12.0"

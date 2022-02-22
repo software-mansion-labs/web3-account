@@ -10,7 +10,7 @@ from starkware.starknet.common.syscalls import call_contract, get_caller_address
 from starkware.cairo.common.hash_state import (
     hash_init, hash_finalize, hash_update, hash_update_single)
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
-from starkware.cairo.common.math import assert_in_range, assert_not_equal, assert_not_zero
+from starkware.cairo.common.math import assert_in_range, assert_not_equal, assert_not_zero, assert_250_bit, assert_lt_felt
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.bitwise import bitwise_and
 from contracts.recover import calc_eth_address
@@ -25,24 +25,47 @@ struct Message:
     member nonce : felt
 end
 
+# Last 160 bits are used for Ethereum address, 90 bits are used for nonce
 @storage_var
-func current_nonce() -> (res : felt):
+func account_state() -> (res : felt):
 end
 
-@storage_var
-func eth_address() -> (res : felt):
+# Nonce shares storage with eth address, so it has to be shifted by 160 bits
+const NONCE_UNIT = 2 ** 160
+const ETH_ADDRESS_MASK = 2 ** 160 - 1
+const NONCE_MASK = 2**250 - 1 - ETH_ADDRESS_MASK
+
+@view
+func get_eth_address{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (address: felt):
+    let (state) = account_state.read()
+    let (address) = bitwise_and(state, ETH_ADDRESS_MASK)
+    return (address)
 end
 
 @view
-func get_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (res : felt):
-    let (res) = current_nonce.read()
-    return (res=res)
+func get_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (nonce : felt):
+    let (state) = account_state.read()
+    let (nonce) = bitwise_and(state, NONCE_MASK)
+    let nonce = nonce / NONCE_UNIT
+    return (nonce)
+end
+
+func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> ():
+    let (state) = account_state.read()
+    let new_state = state + NONCE_UNIT
+
+    assert_250_bit(new_state)
+
+    account_state.write(new_state)
+
+    return ()
 end
 
 @constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        _eth_address : felt):
-    eth_address.write(_eth_address)
+func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(eth_address : felt):
+    assert_lt_felt(eth_address, NONCE_UNIT)
+
+    account_state.write(eth_address)
     return ()
 end
 
@@ -55,10 +78,10 @@ func execute{
     alloc_locals
 
     let (_address) = get_contract_address()
-    let (_current_nonce) = current_nonce.read()
+    let (current_nonce) = get_nonce()
 
     # validate nonce
-    assert _current_nonce = nonce
+    assert current_nonce = nonce
 
     local message : Message = Message(
         _address,
@@ -66,20 +89,21 @@ func execute{
         selector,
         calldata,
         calldata_size=calldata_len,
-        _current_nonce
-        )
+        current_nonce
+    )
 
     validate_signature(message)
 
     # bump nonce
-    current_nonce.write(_current_nonce + 1)
+    increment_nonce()
 
     # execute call
     let response = call_contract(
         contract_address=message.to,
         function_selector=message.selector,
         calldata_size=message.calldata_size,
-        calldata=message.calldata)
+        calldata=message.calldata
+    )
 
     return (response_len=response.retdata_size, response=response.retdata)
 end
@@ -99,7 +123,7 @@ func validate_signature{
         message.to, message.selector, message.calldata_size, message.calldata, message.nonce
     )
     let (address) = calc_eth_address(hash, v, r, s)
-    let (stored) = eth_address.read()
+    let (stored) = get_eth_address()
     assert stored = address
 
     return ()

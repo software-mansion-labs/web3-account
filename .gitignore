@@ -134,3 +134,4 @@ node_modules
 .parcel-cache
 .envrc
 erc20_mapping.json
+.DS_Store
