@@ -39,7 +39,8 @@ account = Contract.deploy_sync(
     compilation_source=account_script,
     constructor_args=[eth_address],
     salt=ACCOUNT_ADDRESS_SALT,
-)
+).deployed_contract
+
 print("ACCOUNT ADDRESS:", account.address)
 
 erc20 = Contract.deploy_sync(
@@ -52,6 +53,7 @@ erc20 = Contract.deploy_sync(
         "recipient": account.address,
     },
     salt=ACCOUNT_ADDRESS_SALT,
-)
+).deployed_contract
+
 print("ERC20 ADDRESS:", erc20.address)
 print("ERC20 ADDRESS TRANSFER SELECTOR", get_selector_from_name("transfer"))
