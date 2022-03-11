@@ -45,12 +45,9 @@ shell = """
     starknet-devnet --host localhost --port 5001 --host 0.0.0.0 &
     DEVNET_PID=$!
     sleep 1
-    CAIRO_PATH="./contracts/keccak-cairo/keccak:./contracts/cairo-contracts/" python contracts/setup.py $eth_address
+    CAIRO_PATH="./contracts/keccak-cairo/keccak:./contracts/cairo-contracts/" python contracts/setup.py
     wait $DEVNET_PID
 """
-args = [
-    { name = "eth_address", required = true },
-]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

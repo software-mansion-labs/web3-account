@@ -13,7 +13,7 @@ from starkware.starknet.services.api.contract_definition import ContractDefiniti
 if __name__ != "__main__":
     raise Exception("Not run as a script")
 
-eth_address = int(sys.argv[1], 0)
+eth_address = int(os.getenv("ETH_ADDRESS"), 0)
 client = Client(net=os.getenv("NODE_URL"), chain=StarknetChainId.TESTNET)
 
 account_script = Path("./contracts/web3_account.cairo").read_text()

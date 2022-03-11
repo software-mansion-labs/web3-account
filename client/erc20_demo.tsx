@@ -1,206 +1,258 @@
+import { CircularProgress, Stack, TextField, Typography } from "@mui/material";
+import { EthAccountProvider, computeAddress, getAdapter } from "./lib";
+import {
+  FormEventHandler,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { bnToUint256, uint256ToBN } from "starknet/utils/uint256";
+import { hexToDecimalString, toBN } from "starknet/utils/number";
+
+import { BN } from "ethereumjs-util";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import Grid from "@mui/material/Grid";
+import LoadingButton from "@mui/lab/LoadingButton";
 import ReactDOM from "react-dom";
-import {FormEventHandler, useCallback, useEffect, useMemo, useState} from "react";
-import {computeAddress, EthAccountProvider, getAdapter} from "./lib";
-import {hexToDecimalString, toBN} from "starknet/utils/number";
-import Button from '@mui/material/Button';
-import LoadingButton from '@mui/lab/LoadingButton';
-import Dialog from '@mui/material/Dialog';
-import Grid from '@mui/material/Grid';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import {CircularProgress, Stack, TextField, Typography} from "@mui/material";
+import Skeleton from "@mui/material/Skeleton";
+import { getSelectorFromName } from "starknet/utils/stark";
+import { trackTxInProgress } from "./hooks";
 import useSWR from "swr";
-import useSWRImmutable from 'swr/immutable'
-import {getSelectorFromName} from "starknet/utils/stark";
-import {bnToUint256, uint256ToBN} from "starknet/utils/uint256";
-import Skeleton from '@mui/material/Skeleton';
-import {BN} from "ethereumjs-util";
-import {trackTxInProgress} from "./hooks";
+import useSWRImmutable from "swr/immutable";
 
-
-const erc20Address = "0x4a02f5b4025f69511996d205321b230fb92bf43818cb173cf38c014f9f11f9a";
+const erc20Address =
+  "0x293201e92a52ef65476c71040b40752a6e0167e1212320fbbea57c1f5a9a358";
 
 // Token has 18 decimal places
 const decimalShift = new BN(10).pow(new BN(18));
 
-const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({lib}) => {
-    const {data: balance, mutate: revalidateBalance} = useSWR(lib.address && "balance", async () => {
-            const {result} = await lib.callContract({
-                calldata: [hexToDecimalString(computeAddress(lib.address))],
-                contract_address: erc20Address,
-                entry_point_selector: getSelectorFromName("balanceOf")
-            });
-            const [low, high] = result
-            // We have 18 decimal places
-            return uint256ToBN({low, high}).div(decimalShift)
-        }
-    );
+const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
+  const { data: balance, mutate: revalidateBalance } = useSWR(
+    lib.address && "balance",
+    async () => {
+      const { result } = await lib.callContract({
+        calldata: [hexToDecimalString(computeAddress(lib.address))],
+        contract_address: erc20Address,
+        entry_point_selector: getSelectorFromName("balanceOf"),
+      });
+      const [low, high] = result;
+      // We have 18 decimal places
+      return uint256ToBN({ low, high }).div(decimalShift);
+    }
+  );
 
-    const [address, setAddress] = useState("");
-    const [amount, setAmount] = useState("")
-    const [loading, setLoading] = useState(false);
+  const [address, setAddress] = useState("");
+  const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
 
+  const { trackTx, txInProgress } = trackTxInProgress(lib, () =>
+    revalidateBalance()
+  );
 
-    const {trackTx, txInProgress} = trackTxInProgress(lib, () => revalidateBalance());
-
-    const calldata = useMemo(() => {
-        if (!amount || !address || address.length != 42) {
-            return undefined;
-        }
-
-        try {
-            const parsedAmount = bnToUint256(toBN(amount, 10).mul(decimalShift));
-            const starknetAddress = computeAddress(address);
-            return [hexToDecimalString(starknetAddress), parsedAmount.low, parsedAmount.high]
-        } catch (e) {
-            console.error(e);
-        }
-        return undefined
-    }, [amount, address]);
-
-    const transferTokens: FormEventHandler = (e) => {
-        e.preventDefault();
-
-        if (loading || !calldata || !lib) {
-            return;
-        }
-
-
-        setLoading(true);
-
-        lib.addTransaction({
-            type: "INVOKE_FUNCTION",
-            contract_address: erc20Address,
-            entry_point_selector: getSelectorFromName("transfer"),
-            calldata,
-        })
-            .then(trackTx)
-            .catch(console.error)
-            .finally(() => setLoading(false));
+  const calldata = useMemo(() => {
+    if (!amount || !address || address.length != 42) {
+      return undefined;
     }
 
-    return (
-        <Stack gap={2}>
-            <Typography variant="h3">Token wallet</Typography>
-            <Typography>Your balance: {balance ? balance.toString() :
-                <Skeleton style={{display: "inline-block", width: 100}}/>}</Typography>
-            <Stack gap={2} component="form" onSubmit={transferTokens}>
-                <Typography variant="h6">Transfer</Typography>
-                <TextField label="Target address" variant="outlined" value={address}
-                           onChange={e => setAddress(e.target.value)}/>
-                <TextField label="Amount" variant="outlined" value={amount}
-                           inputProps={{inputMode: 'numeric', min: 0, pattern: '[0-9]*'}}
-                           onChange={e => setAmount(e.target.value)} type="number"/>
-                <LoadingButton
-                    type="submit"
-                    loading={loading || !!txInProgress} disabled={!balance || !calldata}
-                    variant="contained">
-                    Send tokens
-                </LoadingButton>
-            </Stack>
-        </Stack>
-    )
-}
+    try {
+      const parsedAmount = bnToUint256(toBN(amount, 10).mul(decimalShift));
+      const starknetAddress = computeAddress(address);
+      return [
+        hexToDecimalString(starknetAddress),
+        parsedAmount.low,
+        parsedAmount.high,
+      ];
+    } catch (e) {
+      console.error(e);
+    }
+    return undefined;
+  }, [amount, address]);
 
-const CreateAccountForm: React.FC<{ lib: EthAccountProvider, onCreate: () => void }> = ({lib, onCreate}) => {
-    const [loading, setLoading] = useState(false);
-    const {trackTx, txInProgress} = trackTxInProgress(lib, onCreate);
-    const createAccount: FormEventHandler = (e) => {
-        e.preventDefault();
+  const transferTokens: FormEventHandler = (e) => {
+    e.preventDefault();
 
-        if (loading) {
-            return;
-        }
-
-
-        setLoading(true);
-
-        lib.switchChain().catch(e => alert(JSON.stringify(e, null, 2)))
-
-        Promise.all([lib.switchChain(), lib.deployAccount()])
-            .then(([, tx]) => trackTx(tx))
-            .catch(console.error)
-            .finally(() => setLoading(false));
+    if (loading || !calldata || !lib) {
+      return;
     }
 
-    return (
-        <Stack gap={1} component="form" onSubmit={createAccount}>
-            <Typography variant="h6">It seems that you haven't created an account on StarkNet yet.</Typography>
-            <Typography>In order to send any transactions you need to create an account first. We'll also ask you to add our adapter to MetaMask if it doesn't exist there.</Typography>
-            <LoadingButton loading={!!txInProgress || loading} type="submit" variant="contained">Create my account</LoadingButton>
-        </Stack>)
-}
+    setLoading(true);
+
+    lib
+      .addTransaction({
+        type: "INVOKE_FUNCTION",
+        contract_address: erc20Address,
+        entry_point_selector: getSelectorFromName("transfer"),
+        calldata,
+      })
+      .then(trackTx)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  return (
+    <Stack gap={2}>
+      <Typography variant="h3">Token wallet</Typography>
+      <Typography>
+        Your balance:{" "}
+        {balance ? (
+          balance.toString()
+        ) : (
+          <Skeleton style={{ display: "inline-block", width: 100 }} />
+        )}
+      </Typography>
+      <Stack gap={2} component="form" onSubmit={transferTokens}>
+        <Typography variant="h6">Transfer</Typography>
+        <TextField
+          label="Target address"
+          variant="outlined"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+        />
+        <TextField
+          label="Amount"
+          variant="outlined"
+          value={amount}
+          inputProps={{ inputMode: "numeric", min: 0, pattern: "[0-9]*" }}
+          onChange={(e) => setAmount(e.target.value)}
+          type="number"
+        />
+        <LoadingButton
+          type="submit"
+          loading={loading || !!txInProgress}
+          disabled={!balance || !calldata}
+          variant="contained"
+        >
+          Send tokens
+        </LoadingButton>
+      </Stack>
+    </Stack>
+  );
+};
+
+const CreateAccountForm: React.FC<{
+  lib: EthAccountProvider;
+  onCreate: () => void;
+}> = ({ lib, onCreate }) => {
+  const [loading, setLoading] = useState(false);
+  const { trackTx, txInProgress } = trackTxInProgress(lib, onCreate);
+  const createAccount: FormEventHandler = (e) => {
+    e.preventDefault();
+
+    if (loading) {
+      return;
+    }
+
+    setLoading(true);
+
+    lib.switchChain().catch((e) => alert(JSON.stringify(e, null, 2)));
+
+    Promise.all([lib.switchChain(), lib.deployAccount()])
+      .then(([, tx]) => trackTx(tx))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  return (
+    <Stack gap={1} component="form" onSubmit={createAccount}>
+      <Typography variant="h6">
+        It seems that you haven't created an account on StarkNet yet.
+      </Typography>
+      <Typography>
+        In order to send any transactions you need to create an account first.
+        We'll also ask you to add our adapter to MetaMask if it doesn't exist
+        there.
+      </Typography>
+      <LoadingButton
+        loading={!!txInProgress || loading}
+        type="submit"
+        variant="contained"
+      >
+        Create my account
+      </LoadingButton>
+    </Stack>
+  );
+};
 
 const App = () => {
-    const [requestedAccount, setRequestedAccount] = useState<EthAccountProvider>();
-    const {data} = useSWRImmutable("adapter", async () => {
-        const adapter = await getAdapter();
-        const accounts = await adapter.getAccounts();
-        const account = accounts?.[0];
-        return {adapter, account};
-    })
-    const loadingAdapter = !data;
-    const {adapter, account} = data ?? {};
-    const lib = account || requestedAccount;
+  const [requestedAccount, setRequestedAccount] =
+    useState<EthAccountProvider>();
+  const { data } = useSWRImmutable("adapter", async () => {
+    const adapter = await getAdapter();
+    const accounts = await adapter.getAccounts();
+    const account = accounts?.[0];
+    return { adapter, account };
+  });
+  const loadingAdapter = !data;
+  const { adapter, account } = data ?? {};
+  const lib = account || requestedAccount;
 
-    const [isDeployed, setIsDeployed] = useState<boolean | undefined>(undefined);
-    useEffect(() => {
-        if (!lib) {
-            return;
-        }
-
-        lib.isAccountDeployed().then(setIsDeployed).catch(console.error)
-    }, [lib]);
-
-    useSWR(lib && "xxxxdd", async () => {
-        await lib.switchChain();
-    })
-
-    const requestAccount = useCallback(async () => {
-        const accounts = await adapter.requestAccounts();
-        if (accounts && accounts[0]) {
-            setRequestedAccount(accounts[0])
-        } else {
-            alert("You don't have an account, please create it first")
-        }
-    }, [adapter]);
-
-
-    if (loadingAdapter || (lib && isDeployed === undefined)) {
-        return <Grid
-            container
-            spacing={0}
-            direction="column"
-            alignItems="center"
-            justifyContent="center"
-            style={{minHeight: '100vh'}}
-        >
-            <CircularProgress/>
-        </Grid>
-    }
-
+  const [isDeployed, setIsDeployed] = useState<boolean | undefined>(undefined);
+  useEffect(() => {
     if (!lib) {
-        return (<Dialog open={true}>
-            <DialogTitle id="alert-dialog-title">
-                Connect to Metamask
-            </DialogTitle>
-            <DialogContent>
-                <DialogContentText>
-                    You need to connect to Metamask in order to use this application.
-                </DialogContentText>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={requestAccount} autoFocus>
-                    Connect
-                </Button>
-            </DialogActions>
-        </Dialog>);
+      return;
     }
 
-    return isDeployed ? <TokenWallet lib={lib}/> : <CreateAccountForm lib={lib} onCreate={() => setIsDeployed(true)}/>;
+    lib.isAccountDeployed().then(setIsDeployed).catch(console.error);
+  }, [lib]);
+
+  useSWR(lib && "xxxxdd", async () => {
+    await lib.switchChain();
+  });
+
+  const requestAccount = useCallback(async () => {
+    const accounts = await adapter.requestAccounts();
+    if (accounts && accounts[0]) {
+      setRequestedAccount(accounts[0]);
+    } else {
+      alert("You don't have an account, please create it first");
+    }
+  }, [adapter]);
+
+  if (loadingAdapter || (lib && isDeployed === undefined)) {
+    return (
+      <Grid
+        container
+        spacing={0}
+        direction="column"
+        alignItems="center"
+        justifyContent="center"
+        style={{ minHeight: "100vh" }}
+      >
+        <CircularProgress />
+      </Grid>
+    );
+  }
+
+  if (!lib) {
+    return (
+      <Dialog open={true}>
+        <DialogTitle id="alert-dialog-title">Connect to Metamask</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            You need to connect to Metamask in order to use this application.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={requestAccount} autoFocus>
+            Connect
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+
+  return isDeployed ? (
+    <TokenWallet lib={lib} />
+  ) : (
+    <CreateAccountForm lib={lib} onCreate={() => setIsDeployed(true)} />
+  );
 };
 
 const app = document.getElementById("app");
-ReactDOM.render(<App/>, app);
+ReactDOM.render(<App />, app);
