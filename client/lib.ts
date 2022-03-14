@@ -1,11 +1,16 @@
 import detectEthereumProvider = require("@metamask/detect-provider");
 import { MetaMaskInpageProvider } from "@metamask/providers";
 import { computeHashOnElements } from "starknet/utils/hash";
-import { AddTransactionResponse, Provider, Transaction } from "starknet";
+import {
+  Abi,
+  AddTransactionResponse,
+  Contract,
+  Provider,
+  Transaction,
+} from "starknet";
 import { getSelectorFromName } from "starknet/utils/stark";
-import { serialize } from "@ethersproject/transactions";
 import { hexToDecimalString, toBN } from "starknet/utils/number";
-import { BN } from "ethereumjs-util";
+import { BN, fromRpcSig } from "ethereumjs-util";
 import contract_deploy_tx from "./web3_account.json";
 
 const contractHash =
@@ -21,6 +26,8 @@ export const computeAddress = (ethAddress: string) =>
     contractHash,
     computeHashOnElements([ethAddress]),
   ]);
+
+const RECOVERY_OFFSET = 27;
 
 interface ChainInfo {
   chainId: string;
@@ -142,9 +149,7 @@ export class EthAccountProvider extends Provider {
     }
 
     if (transaction.signature) {
-      throw Error(
-        "EthAccountProvider.addTransaction doesn't support adding signatures."
-      );
+      return super.addTransaction(transaction);
     }
 
     const nonce = transaction.nonce
@@ -157,30 +162,38 @@ export class EthAccountProvider extends Provider {
       selector: toBN(transaction.entry_point_selector),
       nonce,
     };
-    const transactionData = Buffer.concat([
-      payload.address.toArrayLike(Buffer, "big", 32),
-      payload.selector.toArrayLike(Buffer, "big", 32),
-      ...payload.calldata.map((v) => v.toArrayLike(Buffer, "big", 32)),
-    ]);
 
     await this.client.useStarknet();
     const signature = await this.signMessage(payload);
-    console.log("SIGNATURE", signature);
-    const ethTx = serialize(
-      {
-        data: transactionData,
-        nonce: nonce.toNumber(),
-      },
-      signature
+
+    const { v, r, s } = fromRpcSig(signature);
+
+    const rLow = new BN(r.slice(0, 16));
+    const rHigh = new BN(r.slice(16, 32));
+
+    const sLow = new BN(s.slice(0, 16));
+    const sHigh = new BN(s.slice(16, 32));
+
+    const signatureArray = [v - RECOVERY_OFFSET, rHigh, rLow, sHigh, sLow];
+
+    const contract = new Contract(
+      contract_deploy_tx.contract_definition.abi as Abi[],
+      this.starknetAddress,
+      this
     );
-    const txHash = (await this.client.request(
-      "eth_sendRawTransaction",
-      ethTx
-    )) as string;
-    return {
-      code: "TRANSACTION_RECEIVED",
-      transaction_hash: txHash,
-    };
+
+    const result = await contract.invoke(
+      "execute",
+      {
+        to: transaction.contract_address,
+        selector: transaction.entry_point_selector,
+        calldata: transaction.calldata,
+        nonce: nonce.toString("hex"),
+      },
+      signatureArray
+    );
+
+    return result;
   }
 
   public switchChain = this.client.useStarknet;
