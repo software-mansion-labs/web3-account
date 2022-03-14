@@ -37,7 +37,7 @@ In separate terminals start required services:
 
 Dev network & setup contracts:
 ``
-poe devnet --eth_address YOUR_ETH_ADDRESS
+poe devnet
 ``
 
 Run server:
