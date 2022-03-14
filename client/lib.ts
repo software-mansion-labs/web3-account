@@ -168,13 +168,13 @@ export class EthAccountProvider extends Provider {
 
     const { v, r, s } = fromRpcSig(signature);
 
-    const rLow = new BN(r.slice(0, 16));
-    const rHigh = new BN(r.slice(16, 32));
+    const rHigh = new BN(r.slice(0, 16));
+    const rLow = new BN(r.slice(16, 32));
 
-    const sLow = new BN(s.slice(0, 16));
-    const sHigh = new BN(s.slice(16, 32));
+    const sHigh = new BN(s.slice(0, 16));
+    const sLow = new BN(s.slice(16, 32));
 
-    const signatureArray = [v - RECOVERY_OFFSET, rHigh, rLow, sHigh, sLow];
+    const signatureArray = [v - RECOVERY_OFFSET, rLow, rHigh, sLow, sHigh];
 
     const contract = new Contract(
       contract_deploy_tx.contract_definition.abi as Abi[],
