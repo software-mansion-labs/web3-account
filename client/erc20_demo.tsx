@@ -150,10 +150,9 @@ const CreateAccountForm: React.FC<{
 
     setLoading(true);
 
-    lib.switchChain().catch((e) => alert(JSON.stringify(e, null, 2)));
-
-    Promise.all([lib.switchChain(), lib.deployAccount()])
-      .then(([, tx]) => trackTx(tx))
+    lib
+      .deployAccount()
+      .then((tx) => trackTx(tx))
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -200,10 +199,6 @@ const App = () => {
 
     lib.isAccountDeployed().then(setIsDeployed).catch(console.error);
   }, [lib]);
-
-  useSWR(lib && "xxxxdd", async () => {
-    await lib.switchChain();
-  });
 
   const requestAccount = useCallback(async () => {
     const accounts = await adapter.requestAccounts();
