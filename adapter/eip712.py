@@ -5,7 +5,7 @@ from eip712_structs import EIP712Struct, Uint, make_domain, Array
 
 from eth_utils import keccak
 
-from adapter.settings import CHAIN_ID, DOMAIN_NAME
+from adapter.settings import DOMAIN_NAME
 
 
 class Payload(EIP712Struct):
@@ -15,7 +15,7 @@ class Payload(EIP712Struct):
     calldata = Array(Uint(256))
 
 
-adapter_domain = make_domain(name=DOMAIN_NAME, chainId=CHAIN_ID, version="1")
+adapter_domain = make_domain(name=DOMAIN_NAME, version="1")
 
 
 def to_message_hash(

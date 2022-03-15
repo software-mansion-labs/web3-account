@@ -29,25 +29,10 @@ export const computeAddress = (ethAddress: string) =>
 
 const RECOVERY_OFFSET = 27;
 
-interface ChainInfo {
-  chainId: string;
-  chainName: string;
-  rpcUrls: string[];
-}
-
-const rpcUrl = "https://127.0.0.1:8000";
 const chainName = process.env.DOMAIN_NAME;
-
-const chainId = process.env.CHAIN_ID;
-const chain: ChainInfo = {
-  chainId,
-  chainName,
-  rpcUrls: [rpcUrl],
-};
 
 export const typedData = {
   domain: {
-    chainId: chainId,
     name: chainName,
     version: "1",
   },
@@ -58,7 +43,6 @@ export const typedData = {
     EIP712Domain: [
       { name: "name", type: "string" },
       { name: "version", type: "string" },
-      { name: "chainId", type: "uint256" },
     ],
     Payload: [
       { name: "nonce", type: "uint256" },
@@ -86,34 +70,8 @@ interface Payload {
   calldata: BN[];
 }
 
-const UNRECOGNIZED_CHAIN = 4902;
-const WRONG_ADDRESS = -32602;
-
 class MetamaskClient {
-  constructor(
-    protected provider: MetaMaskInpageProvider,
-    protected chainConfig: ChainInfo = chain
-  ) {}
-
-  public useStarknet = async () => {
-    try {
-      await this.request("wallet_addEthereumChain", this.chainConfig);
-      const r = await this.switch();
-      // alert("SWITCHED " + r);
-    } catch (e) {
-      if ("code" in e && e.code === UNRECOGNIZED_CHAIN) {
-        await this.request("wallet_addEthereumChain", this.chainConfig);
-        await this.switch();
-        return;
-      }
-      throw e;
-    }
-  };
-
-  protected switch = () =>
-    this.request("wallet_switchEthereumChain", {
-      chainId: this.chainConfig.chainId,
-    });
+  constructor(protected provider: MetaMaskInpageProvider) {}
 
   request = (method: string, ...params: any[]) =>
     this.provider.request({ method, params });
@@ -163,7 +121,6 @@ export class EthAccountProvider extends Provider {
       nonce,
     };
 
-    await this.client.useStarknet();
     const signature = await this.signMessage(payload);
 
     const { v, r, s } = fromRpcSig(signature);
@@ -196,8 +153,6 @@ export class EthAccountProvider extends Provider {
     return result;
   }
 
-  public switchChain = this.client.useStarknet;
-
   public isAccountDeployed = async (): Promise<boolean> => {
     const code = await this.getCode(this.starknetAddress);
     return !!code.bytecode.length;
@@ -223,8 +178,7 @@ export class EthAccountProvider extends Provider {
 
   signMessage = (payload: Payload): Promise<string> => {
     const data = makeData(payload);
-    // const {chainId, ...domain} = data.domain;
-    // data.domain = domain;
+
     console.log(JSON.stringify(data, null, 2));
     return this.client.request(
       "eth_signTypedData_v4",
@@ -239,7 +193,6 @@ type HandlerRemover = () => void;
 
 interface AdapterOptions {
   starknet: ProviderOptions;
-  adapterChain?: ChainInfo;
 }
 
 export class StarknetAdapter extends MetamaskClient {
@@ -247,7 +200,7 @@ export class StarknetAdapter extends MetamaskClient {
     private readonly options: AdapterOptions,
     metamask: MetaMaskInpageProvider
   ) {
-    super(metamask, options.adapterChain);
+    super(metamask);
   }
 
   requestAccounts = async (): Promise<EthAccountProvider[]> => {

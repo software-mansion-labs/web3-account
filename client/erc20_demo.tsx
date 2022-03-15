@@ -27,7 +27,7 @@ import useSWR from "swr";
 import useSWRImmutable from "swr/immutable";
 
 const erc20Address =
-  "0x293201e92a52ef65476c71040b40752a6e0167e1212320fbbea57c1f5a9a358";
+  "0x3655be1cee02caec97c70a96cf1c5cca764c10f608e55f0e1b51045ece48eb6";
 
 // Token has 18 decimal places
 const decimalShift = new BN(10).pow(new BN(18));

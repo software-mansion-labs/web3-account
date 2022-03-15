@@ -15,7 +15,7 @@ if __name__ != "__main__":
 print("PAYLOAD TYPE HASH", "0x" + Payload.type_hash().hex())
 
 adapter_domain = make_domain(
-    name="Starknet adapter", chainId=int(os.getenv("CHAIN_ID"), 0), version="1"
+    name="Starknet adapter", version="1"
 )
 
 print("DOMAIN SEPARATOR", "0x" + adapter_domain.hash_struct().hex())

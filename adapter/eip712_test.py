@@ -12,7 +12,7 @@ payload_args = dict(
 
 signature = 0x537021CF10650D5798C78FE6CE1008C7FB04123B18194BADA3C307EE55263A450C0158566D52B92DF1B231DDCF61B31E65397DB6AA97CDF9DFC5676F727400471C
 
-test_domain = make_domain(name="Starknet adapter", chainId=0xB, version="1")
+test_domain = make_domain(name="Starknet adapter", version="1")
 
 
 def test_schema():
@@ -23,7 +23,7 @@ def test_schema():
 
     assert (
         domain.hash_struct().hex()
-        == "a9a75dadb300183067a4891919ea159951513371b5554d7434dea255a2651014"
+        == "d986ed154f5666297a4a36c4e72f7a12d338e4e6e1e35a9cfc4b4f3cf1778252"
     )
     assert (
         payload.hash_struct().hex()

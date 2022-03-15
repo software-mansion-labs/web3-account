@@ -30,8 +30,8 @@ const PREFIX = 0x1901
 const TYPE_HASH_HIGH = 0x71430fb281ccdfae35ad0b5d5279034e
 const TYPE_HASH_LOW = 0x04e1e56c77b10d30506aad6cad95206f
 # Has to be recalculated when type is changed with adapter_domain.hash_struct()
-const DOMAIN_SEP_HIGH = 0xf34e4925c3b747cc72a3a7fe3cba00b7
-const DOMAIN_SEP_LOW = 0x944f2584e26cba35eaa1eb30e5194c33
+const DOMAIN_SEP_HIGH = 0xd986ed154f5666297a4a36c4e72f7a12 
+const DOMAIN_SEP_LOW = 0xd338e4e6e1e35a9cfc4b4f3cf1778252 
 
 # value has to be a 16 byte word
 # prefix length = PREFIX_BITS
