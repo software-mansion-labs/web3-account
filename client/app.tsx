@@ -1,11 +1,16 @@
 import ReactDOM from "react-dom";
-import {useCallback, useEffect, useMemo, useState} from "react";
-import {computeAddress, EthAccountProvider, getAdapter, makeData} from "./lib";
-import {getMessage} from 'eip-712';
-import {toBN} from "starknet/utils/number";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  computeAddress,
+  EthAccountProvider,
+  getAdapter,
+  makeData,
+} from "./lib";
+import { getMessage } from "eip-712";
+import { toBN } from "starknet/utils/number";
 
-const padded = {display: "block", padding: 20};
-const inputStyle = {width: "600px", display: "block"}
+const padded = { display: "block", padding: 20 };
+const inputStyle = { width: "600px", display: "block" };
 
 const AddressTranslator = () => {
     const [address, setAddress] = useState("0xc116F87a2e8816Ac2A081f60D754d27CfA9b16a9");
@@ -21,7 +26,6 @@ const AddressTranslator = () => {
     }, [address]);
     return (<div style={padded}>
         <p>
-
             GET STARKNET ADDRESS
             <input style={inputStyle} value={address} onChange={e => setAddress(e.target.value)}/>
         </p>
@@ -117,19 +121,26 @@ const App = () => {
             {payload && <pre>{hash.toString("hex")}</pre>}
         </div>
         <div style={padded}>
-            <button disabled={!lib || !payload}
-                    onClick={() => lib.addTransaction({
-                        type: "INVOKE_FUNCTION",
-                        nonce: payload.nonce,
-                        contract_address: payload.address,
-                        entry_point_selector: payload.selector,
-                        calldata: payload.calldata
-                    }).then(console.log).then(() => alert("SUCCESS!")).then(() => updateNonce()).catch(console.error)}>
-                SEND TRANSACTION
-            </button>
-        </div>
+        <button
+          disabled={!lib || !payload}
+          onClick={() =>
+            lib
+              .invokeFunction({
+                contractAddress: payload.address.toString(),
+                entrypoint: payload.selector.toString(),
+                calldata: payload.calldata,
+              })
+              .then(console.log)
+              .then(() => alert("SUCCESS!"))
+              .then(() => updateNonce())
+              .catch(console.error)
+          }
+        >
+          SEND TRANSACTION
+        </button>
+      </div>
     </div>;
 };
 
 const app = document.getElementById("app");
-ReactDOM.render(<App/>, app);
+ReactDOM.render(<App />, app);
