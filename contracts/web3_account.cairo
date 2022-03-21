@@ -54,7 +54,10 @@ func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     let (state) = account_state.read()
     let new_state = state + NONCE_UNIT
 
-    assert_250_bit(new_state)
+    with_attr error_message(
+            "Account state value should be 250 bits."):
+        assert_250_bit(new_state)
+    end
 
     account_state.write(new_state)
 
@@ -63,7 +66,10 @@ end
 
 @constructor
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(eth_address : felt):
-    assert_lt_felt(eth_address, NONCE_UNIT)
+    with_attr error_message(
+            "Invalid address length."):
+        assert_lt_felt(eth_address, NONCE_UNIT)
+    end
 
     account_state.write(eth_address)
     return ()
@@ -81,7 +87,10 @@ func execute{
     let (current_nonce) = get_nonce()
 
     # validate nonce
-    assert current_nonce = nonce
+    with_attr error_message(
+            "Invalid nonce."):
+        assert current_nonce = nonce
+    end
 
     local message : Message = Message(
         _address,
@@ -114,7 +123,11 @@ func validate_signature{
 }(message : Message) -> ():
     alloc_locals
     let (signature_len, signature) = get_tx_signature()
-    assert signature_len = 5
+    
+    with_attr error_message(
+            "Invalid signature length. Signature should have exactly 5 elements."):
+        assert signature_len = 5
+    end
 
     let v = signature[0]
     let r = Uint256(signature[1], signature[2])
@@ -124,7 +137,11 @@ func validate_signature{
     )
     let (address) = calc_eth_address(hash, v, r, s)
     let (stored) = get_eth_address()
-    assert stored = address
+    
+    with_attr error_message(
+            "Decoed address does not match stored address"):
+        assert stored = address
+    end
 
     return ()
 end
