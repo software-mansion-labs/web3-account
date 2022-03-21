@@ -21,10 +21,10 @@ import Grid from "@mui/material/Grid";
 import LoadingButton from "@mui/lab/LoadingButton";
 import ReactDOM from "react-dom";
 import Skeleton from "@mui/material/Skeleton";
-import { getSelectorFromName } from "starknet/utils/stark";
 import { trackTxInProgress } from "./hooks";
 import useSWR from "swr";
 import useSWRImmutable from "swr/immutable";
+import { getSelectorFromName } from "starknet/utils/hash";
 
 const erc20Address =
   "0x3655be1cee02caec97c70a96cf1c5cca764c10f608e55f0e1b51045ece48eb6";
@@ -38,8 +38,8 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
     async () => {
       const { result } = await lib.callContract({
         calldata: [hexToDecimalString(computeAddress(lib.address))],
-        contract_address: erc20Address,
-        entry_point_selector: getSelectorFromName("balanceOf"),
+        contractAddress: erc20Address,
+        entrypoint: "balanceOf",
       });
       const [low, high] = result;
       // We have 18 decimal places
@@ -64,9 +64,9 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
       const parsedAmount = bnToUint256(toBN(amount, 10).mul(decimalShift));
       const starknetAddress = computeAddress(address);
       return [
-        hexToDecimalString(starknetAddress),
-        parsedAmount.low,
-        parsedAmount.high,
+        starknetAddress,
+        parsedAmount.low.toString(16),
+        parsedAmount.high.toString(16),
       ];
     } catch (e) {
       console.error(e);
@@ -84,10 +84,9 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
     setLoading(true);
 
     lib
-      .addTransaction({
-        type: "INVOKE_FUNCTION",
-        contract_address: erc20Address,
-        entry_point_selector: getSelectorFromName("transfer"),
+      .invokeFunction({
+        contractAddress: erc20Address,
+        entrypoint: getSelectorFromName("transfer"),
         calldata,
       })
       .then(trackTx)

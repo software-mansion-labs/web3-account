@@ -5,10 +5,12 @@ import {
   Abi,
   AddTransactionResponse,
   Contract,
+  Invocation,
+  InvocationsSignerDetails,
   Provider,
-  Transaction,
+  Signature,
+  SignerInterface,
 } from "starknet";
-import { getSelectorFromName } from "starknet/utils/stark";
 import { hexToDecimalString, toBN } from "starknet/utils/number";
 import { BN, fromRpcSig } from "ethereumjs-util";
 import contract_deploy_tx from "./web3_account.json";
@@ -77,7 +79,7 @@ class MetamaskClient {
     this.provider.request({ method, params });
 }
 
-type NetworkName = "mainnet-alpha" | "georli-alpha";
+type NetworkName = "mainnet-alpha" | "goerli-alpha";
 
 type ProviderOptions =
   | {
@@ -87,68 +89,134 @@ type ProviderOptions =
       baseUrl: string;
     };
 
-export class EthAccountProvider extends Provider {
+export class EthSigner implements SignerInterface {
   public readonly starknetAddress: string;
 
+  constructor(private client: MetamaskClient, public readonly address: string) {
+    this.starknetAddress = computeAddress(this.address);
+  }
+
+  public async getPubKey(): Promise<string> {
+    return (await this.client.request("eth_getEncryptionPublicKey", [
+      this.address,
+    ])) as string;
+  }
+
+  public async signMessage(
+    typedData: {
+      types: { StarkNetDomain: { type: string; name: string }[] } & Record<
+        string,
+        { type: string; name: string }[]
+      >;
+      primaryType: string;
+      domain: { name?: string; version?: string; chainId?: string | number };
+      message: Record<string, unknown>;
+    },
+    accountAddress: string
+  ): Promise<Signature> {
+    throw new Error(
+      "signMessage is not supported in ETHSigner, use default Signer."
+    );
+  }
+
+  public async signTransaction(
+    transactions: Invocation[],
+    transactionsDetail: InvocationsSignerDetails,
+    abis?: Abi[]
+  ): Promise<Signature> {
+    if (transactions.length === 0) {
+      throw new Error("No transaction to sign");
+    }
+
+    if (transactions.length > 1) {
+      throw new Error("Signing multiple transactions is not supported");
+    }
+
+    const transaction = transactions[0];
+
+    const message = {
+      address: transaction.contractAddress,
+      calldata: transaction.calldata,
+      selector: transaction.entrypoint,
+      nonce: transactionsDetail.nonce,
+    };
+
+    const data = {
+      ...typedData,
+      message,
+    };
+
+    const signature = await this.sign(data);
+
+    return this.parseSignature(signature);
+  }
+
+  sign(data: Record<string, any>): Promise<string> {
+    return this.client.request(
+      "eth_signTypedData_v4",
+      this.address,
+      JSON.stringify(data)
+    ) as Promise<string>;
+  }
+
+  parseSignature(signature: string): Signature {
+    const { v, r, s } = fromRpcSig(signature);
+
+    const rHigh = "0x" + r.slice(0, 16).toString("hex");
+    const rLow = "0x" + r.slice(16, 32).toString("hex");
+
+    const sHigh = "0x" + s.slice(0, 16).toString("hex");
+    const sLow = "0x" + s.slice(16, 32).toString("hex");
+
+    const vStr = "0x" + (v - RECOVERY_OFFSET).toString(16);
+
+    return [vStr, rLow, rHigh, sLow, sHigh];
+  }
+}
+
+export class EthAccountProvider extends Provider {
+  public readonly starknetAddress: string;
+  private signer: EthSigner;
+
   constructor(
-    optionsOrProvider: ProviderOptions | Provider,
+    optionsOrProvider: Provider | ProviderOptions,
     private client: MetamaskClient,
     public readonly address: string
   ) {
     super(optionsOrProvider);
     this.starknetAddress = computeAddress(this.address);
+    this.signer = new EthSigner(client, address);
   }
 
-  public override async addTransaction(
-    transaction: Transaction
+  public override async invokeFunction(
+    invocation: Invocation,
+    _abi?: Abi
   ): Promise<AddTransactionResponse> {
-    if (transaction.type === "DEPLOY") {
-      return super.addTransaction(transaction);
+    if (invocation.signature) {
+      return super.invokeFunction(invocation, _abi);
     }
 
-    if (transaction.signature) {
-      return super.addTransaction(transaction);
-    }
+    const nonce = await this.fetchNonce();
 
-    const nonce = transaction.nonce
-      ? toBN(transaction.nonce)
-      : await this.fetchNonce();
-
-    const payload = {
-      address: toBN(transaction.contract_address),
-      calldata: transaction.calldata.map((v) => toBN(v)),
-      selector: toBN(transaction.entry_point_selector),
-      nonce,
-    };
-
-    const signature = await this.signMessage(payload);
-
-    const { v, r, s } = fromRpcSig(signature);
-
-    const rHigh = new BN(r.slice(0, 16));
-    const rLow = new BN(r.slice(16, 32));
-
-    const sHigh = new BN(s.slice(0, 16));
-    const sLow = new BN(s.slice(16, 32));
-
-    const signatureArray = [v - RECOVERY_OFFSET, rLow, rHigh, sLow, sHigh];
+    const signature = await this.signer.signTransaction([invocation], {
+      nonce: nonce,
+      maxFee: 0,
+      walletAddress: "",
+    });
 
     const contract = new Contract(
-      contract_deploy_tx.contract_definition.abi as Abi[],
+      contract_deploy_tx.contract_definition.abi as Abi,
       this.starknetAddress,
       this
     );
 
-    const result = await contract.invoke(
-      "execute",
-      {
-        to: transaction.contract_address,
-        selector: transaction.entry_point_selector,
-        calldata: transaction.calldata,
-        nonce: nonce.toString("hex"),
-      },
-      signatureArray
-    );
+    const result = await contract.invoke("execute", [
+      invocation.contractAddress,
+      invocation.entrypoint,
+      invocation.calldata,
+      nonce,
+      signature,
+    ]);
 
     return result;
   }
@@ -159,32 +227,20 @@ export class EthAccountProvider extends Provider {
   };
 
   public deployAccount = async (): Promise<AddTransactionResponse> => {
-    return this.addTransaction({
-      ...contract_deploy_tx,
-      type: "DEPLOY",
-      contract_address_salt: contractSalt,
-      constructor_calldata: [hexToDecimalString(this.address)],
+    return this.deployContract({
+      contract: contract_deploy_tx.contract_definition.program,
+      constructorCalldata: [hexToDecimalString(this.address)],
+      addressSalt: contractSalt,
     });
   };
 
   fetchNonce = async (): Promise<BN> => {
     const response = await this.callContract({
-      contract_address: this.starknetAddress,
-      entry_point_selector: getSelectorFromName("get_nonce"),
+      contractAddress: this.starknetAddress,
+      entrypoint: "get_nonce",
       calldata: [],
     });
     return toBN(response.result[0]);
-  };
-
-  signMessage = (payload: Payload): Promise<string> => {
-    const data = makeData(payload);
-
-    console.log(JSON.stringify(data, null, 2));
-    return this.client.request(
-      "eth_signTypedData_v4",
-      this.address,
-      JSON.stringify(data)
-    ) as Promise<string>;
   };
 }
 
