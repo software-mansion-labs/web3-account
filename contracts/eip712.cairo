@@ -27,10 +27,9 @@ func map_to_uint256{range_check_ptr}(values : felt*, values_len : felt) -> (resu
 end
 
 const PREFIX = 0x1901
-# TODO: UPDATE!
 # Has to be recalculated when type is changed with Payload.type_hash()
-const TYPE_HASH_HIGH = 0x71430fb281ccdfae35ad0b5d5279034e
-const TYPE_HASH_LOW = 0x04e1e56c77b10d30506aad6cad95206f
+const PAYLOAD_HASH_HIGH = 0xb4c1c484de108a9fb83c22de3fbffb49
+const PAYLOAD_HASH_LOW = 0x8ccbbccfea83811fbba4f9f72741b284
 
 # value has to be a 16 byte word
 # prefix length = PREFIX_BITS
@@ -45,27 +44,27 @@ func add_prefix{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value : felt, pr
     return (result, overflow)
 end
 
-func get_call_hash{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
+func encode_call{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
+    values: Uint256*,
     to : felt, selector : felt, calldata_len : felt, calldata : felt*
-) -> (hash: Uint256):
+) -> ():
     alloc_locals
-    let (calldata_uint256) = map_to_uint256(calldata, calldata_len)
-    let (calldata_hash) = uint256_keccak(calldata_uint256, calldata_len * 32)
-
-    let (encoded_data : Uint256*) = alloc()
 
     let (to_h, to_l) = split_felt(to)
-    assert encoded_data[0] = Uint256(to_l, to_h)
-    let (selector_h, selector_l) = split_felt(selector)
-    assert encoded_data[1] = Uint256(selector_l, selector_h)
-    assert encoded_data[2] = Uint256(calldata_hash.low, calldata_hash.high)
-    let (call_hash) = uint256_keccak(encoded_data, 3 * 32)
+    assert values[0] = Uint256(to_l, to_h)
 
-    return (call_hash)
+    let (selector_h, selector_l) = split_felt(selector)
+    assert values[1] = Uint256(selector_l, selector_h)
+
+    let (calldata_uint256) = map_to_uint256(calldata, calldata_len)
+    let (calldata_hash) = uint256_keccak(calldata_uint256, calldata_len * 32)
+    assert values[2] = Uint256(calldata_hash.low, calldata_hash.high)
+
+    return ()
 end
 
-func calls_hash_loop{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
-    results: Uint256*,
+func encode_calls_loop{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
+    values: Uint256*,
     call_index: felt,
     call_array_len: felt,
     call_array: AccountCallArray*,
@@ -77,18 +76,28 @@ func calls_hash_loop{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
 
    let call_info = call_array[call_index]
    let call_calldata = calldata + call_info.data_offset
-   let (hash) = get_call_hash(
+   let values = values + call_index * 6 # every call creates 3 uint256s, every uint256 = 2 felts
+   encode_call(
+        values=values,
         to=call_info.to,
         selector=call_info.selector,
         calldata_len=call_info.data_len,
         calldata=call_calldata,
    )
-   assert results[call_index] = hash
+
+   encode_calls_loop(
+        values,
+        call_index+1,
+        call_array_len,
+        call_array,
+        calldata,
+   )
+
    return ()
 end
 
 
-func get_calls_hash{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
+func encode_call_array{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     call_array_len: felt,
     call_array: AccountCallArray*,
     calldata: felt*,
@@ -96,16 +105,19 @@ func get_calls_hash{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     calls_hash: Uint256
 ):
     alloc_locals
-    let (hashes : Uint256*) = alloc()
-    calls_hash_loop(
-        results=hashes,
+    let (values : Uint256*) = alloc()
+
+    encode_calls_loop(
+        values=values,
         call_index=0,
         call_array_len=call_array_len,
         call_array=call_array,
         calldata=calldata,
     )
 
-    let (calls_hash) = uint256_keccak(hashes, call_array_len * 32)
+    # Every call is 3 uint256
+    let (calls_hash) = uint256_keccak(values, call_array_len * 3 * 32)
+
     return (calls_hash)
 end
 
@@ -115,22 +127,29 @@ func get_hash{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     calldata: felt*,
     nonce: felt,
     max_fee: felt,
+    version: felt,
     domain_hash: Uint256,
 ) -> (
     hashed_msg : Uint256
 ):
     alloc_locals
-    let (calls_hash) = get_calls_hash(call_array_len, call_array, calldata)
-
-    let (nonce_h, nonce_l) = split_felt(nonce)
-    let (max_fee_h, max_fee_l) = split_felt(max_fee)
+    let (calls_hash) = encode_call_array(call_array_len, call_array, calldata)
 
     let (encoded_data : Uint256*) = alloc()
-    assert encoded_data[0] = Uint256(TYPE_HASH_LOW, TYPE_HASH_HIGH)
+
+    assert encoded_data[0] = Uint256(PAYLOAD_HASH_LOW, PAYLOAD_HASH_HIGH)
+
+    let (nonce_h, nonce_l) = split_felt(nonce)
     assert encoded_data[1] = Uint256(nonce_l, nonce_h)
+
+    let (max_fee_h, max_fee_l) = split_felt(max_fee)
     assert encoded_data[2] = Uint256(max_fee_l, max_fee_h)
-    assert encoded_data[3] = Uint256(calls_hash.low, calls_hash.high)
-    let (data_hash) = uint256_keccak(encoded_data, 4 * 32)
+
+    let (version_h, version_l) = split_felt(version)
+    assert encoded_data[3] = Uint256(version_l, version_h)
+
+    assert encoded_data[4] = Uint256(calls_hash.low, calls_hash.high)
+    let (data_hash) = uint256_keccak(encoded_data, 5 * 32)
 
     let prefix = PREFIX
     let (w1, prefix) = add_prefix(domain_hash.high, prefix)

@@ -38,6 +38,13 @@ MSG_HASH = 0x9be87f5efdc2874778864b9abe695afb383146d14ee12bb461b2d42ec825dc43
 R = 91371428948140721292053366927303155729780387242950088058739584932119801737335
 S = 10445357150428373527866486749585752345788028030487035436249255629148545670353
 V = 1
+
+PUBLIC_KEY = (
+    # X
+    (0x1b87a9257ab8a6a8d14e6b, 0x296a9f38a2b565ae55b10d, 0x8266ff26eab1662a25a01),
+    # Y
+    (0x3cde5b693a44a5acc47b54, 0x1d993f745baf1f310f78af, 0x74d869a516feaa0287b0)
+)
 ADDRESS = 0x7FC37b5571e7128DB2CfA7714eDAA4e9Bedf0883
 
 @pytest.mark.asyncio
@@ -55,7 +62,8 @@ async def test_calc_public_key():
 
     info: StarknetContractCall = call.call_info
     print("RECOVER PUBLIC KEY", info.cairo_usage)
-    # assert call.result[0] == ADDRESS
+    assert call.result[0][0] == PUBLIC_KEY[0]
+    assert call.result[0][1] == PUBLIC_KEY[1]
 
 @pytest.mark.asyncio
 async def test_calc_eth_address():

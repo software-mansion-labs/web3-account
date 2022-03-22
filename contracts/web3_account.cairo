@@ -122,6 +122,7 @@ func __execute__{
         calldata,
         nonce,
         tx_info.max_fee,
+        tx_info.version,
     )
 
     # bump nonce
@@ -155,12 +156,12 @@ func validate_signature{
     calldata: felt*,
     nonce: felt,
     max_fee: felt,
+    version: felt,
 ) -> ():
     alloc_locals
     let (domain_hash) = domain.read()
     let (signature_len, signature) = get_tx_signature()
-    let (domain_hash) = domain.read()
-    
+
     with_attr error_message(
         "Invalid signature length. Signature should have exactly 5 elements."
     ):
@@ -176,6 +177,7 @@ func validate_signature{
         calldata,
         nonce,
         max_fee,
+        version,
         domain_hash,
     )
     let (address) = calc_eth_address(hash, v, r, s)

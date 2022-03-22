@@ -18,7 +18,10 @@ def to_uint256(v):
 
 
 async def deploy_contract_with_hints(starknet, code, calldata) -> StarknetContract:
-    cairo_path = [os.path.join(os.path.dirname(__file__), "./keccak-cairo/keccak/")]
+    cairo_path = [
+        os.path.join(os.path.dirname(__file__), "./keccak-cairo/keccak/"),
+        os.path.join(os.path.dirname(__file__), "./cairo-contracts/"),
+    ]
 
     module_reader = get_module_reader(cairo_path=cairo_path)
 
@@ -41,13 +44,7 @@ async def deploy_contract_with_hints(starknet, code, calldata) -> StarknetContra
         file_contents_for_debug_info={},
     )
 
-    deploy = InternalDeploy.from_external(Deploy(
-        contract_address_salt=ContractAddressSalt.get_random_value(),
-        contract_definition=assembled_program,
-        constructor_calldata=calldata,
-    ), starknet.state.general_config)
-
     return await starknet.deploy(
-        contract_def=deploy.contract_definition,
+        contract_def=assembled_program,
         constructor_calldata=calldata,
     )
