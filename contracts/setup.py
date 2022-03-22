@@ -10,6 +10,8 @@ from starknet_py.utils.compiler.starknet_compile import starknet_compile
 from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.services.api.contract_definition import ContractDefinition
 
+from eip712_structs import make_domain
+
 if __name__ != "__main__":
     raise Exception("Not run as a script")
 
@@ -23,6 +25,13 @@ ACCOUNT_ADDRESS_SALT = int(os.getenv("ACCOUNT_ADDRESS_SALT"))
 account_hash = Contract.compute_contract_hash(compilation_source=account_script)
 print("ACCOUNT CONTRACT HASH:", account_hash)
 
+domain_name = os.getenv("DOMAIN_NAME", )
+adapter_domain = make_domain(name=domain_name, version="1")
+
+domain_hash_low = int(adapter_domain.hash_struct().hex()[32:], 16)
+domain_hash_high = int(adapter_domain.hash_struct().hex()[:32], 16)
+
+domain_hash_struct = { "low": domain_hash_low, "high": domain_hash_high }
 
 # Save contract definition
 # Starknet.js compresses program in a different way
@@ -37,7 +46,7 @@ Path("client/web3_account.json").write_text(json.dumps(dump))
 account = Contract.deploy_sync(
     client=client,
     compilation_source=account_script,
-    constructor_args=[eth_address],
+    constructor_args=[eth_address, domain_hash_struct],
     salt=ACCOUNT_ADDRESS_SALT,
 ).deployed_contract
 

@@ -11,7 +11,7 @@ from starkware.cairo.common.hash_state import (
     hash_init, hash_finalize, hash_update, hash_update_single)
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math import assert_in_range, assert_not_equal, assert_not_zero, assert_250_bit, assert_lt_felt
-from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.uint256 import Uint256, uint256_check
 from starkware.cairo.common.bitwise import bitwise_and
 from contracts.recover import calc_eth_address
 from contracts.eip712 import get_hash
@@ -28,6 +28,10 @@ end
 # Last 160 bits are used for Ethereum address, 90 bits are used for nonce
 @storage_var
 func account_state() -> (res : felt):
+end
+
+@storage_var
+func domain() -> (hash : Uint256):
 end
 
 # Nonce shares storage with eth address, so it has to be shifted by 160 bits
@@ -65,13 +69,19 @@ func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
 end
 
 @constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(eth_address : felt):
+func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(eth_address : felt, domain_hash : Uint256):
     with_attr error_message(
             "Invalid address length."):
         assert_lt_felt(eth_address, NONCE_UNIT)
     end
 
+    with_attr error_message(
+            "Invalid domain hash value."):
+        uint256_check(domain_hash)
+    end
+
     account_state.write(eth_address)
+    domain.write(domain_hash)
     return ()
 end
 
@@ -123,6 +133,7 @@ func validate_signature{
 }(message : Message) -> ():
     alloc_locals
     let (signature_len, signature) = get_tx_signature()
+    let (domain_hash) = domain.read()
     
     with_attr error_message(
             "Invalid signature length. Signature should have exactly 5 elements."):
@@ -133,7 +144,7 @@ func validate_signature{
     let r = Uint256(signature[1], signature[2])
     let s = Uint256(signature[3], signature[4])
     let (hash) = get_hash(
-        message.to, message.selector, message.calldata_size, message.calldata, message.nonce
+        message.to, message.selector, message.calldata_size, message.calldata, message.nonce, domain_hash
     )
     let (address) = calc_eth_address(hash, v, r, s)
     let (stored) = get_eth_address()
