@@ -27,7 +27,7 @@ import useSWRImmutable from "swr/immutable";
 import { getSelectorFromName } from "starknet/utils/hash";
 
 const erc20Address =
-  "0x3655be1cee02caec97c70a96cf1c5cca764c10f608e55f0e1b51045ece48eb6";
+  "0x47b4d36bcd5508179ad581509d3878a416f1a404e4fa112f427a7c3cf766beb";
 
 // Token has 18 decimal places
 const decimalShift = new BN(10).pow(new BN(18));

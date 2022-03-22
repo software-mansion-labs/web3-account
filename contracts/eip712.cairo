@@ -47,7 +47,7 @@ func add_prefix{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value : felt, pr
 end
 
 func get_hash{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
-        to : felt, selector : felt, calldata_len : felt, calldata : felt*, nonce : felt) -> (
+        to : felt, selector : felt, calldata_len : felt, calldata : felt*, nonce : felt, domain_hash : Uint256) -> (
         hashed_msg : Uint256):
     alloc_locals
     let (calldata_uint256) = map_to_uint256(calldata, calldata_len)
@@ -66,8 +66,8 @@ func get_hash{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     let (data_hash) = uint256_keccak(encoded_data, 5 * 32)
 
     let prefix = PREFIX
-    let (w1, prefix) = add_prefix(DOMAIN_SEP_HIGH, prefix)
-    let (w0, prefix) = add_prefix(DOMAIN_SEP_LOW, prefix)
+    let (w1, prefix) = add_prefix(domain_hash.high, prefix)
+    let (w0, prefix) = add_prefix(domain_hash.low, prefix)
     let (w3, prefix) = add_prefix(data_hash.high, prefix)
     let (w2, overflow) = add_prefix(data_hash.low, prefix)
     let (signable_bytes : Uint256*) = alloc()

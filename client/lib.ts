@@ -4,6 +4,7 @@ import { computeHashOnElements } from "starknet/utils/hash";
 import {
   Abi,
   AddTransactionResponse,
+  CompressedCompiledContract,
   Contract,
   Invocation,
   InvocationsSignerDetails,
@@ -20,18 +21,29 @@ const contractHash =
 const contractSalt =
   "0x" + BigInt(process.env.ACCOUNT_ADDRESS_SALT).toString(16);
 
+const RECOVERY_OFFSET = 27;
+
+const chainName = process.env.DOMAIN_NAME;
+
+const domainHash =
+  chainName === "Starknet Alpha Mainnet"
+    ? {
+        low: "116859380687502041814386376410414224434",
+        high: "230894979361313997426860759335020630660",
+      }
+    : {
+        low: "280762518416471191671265710498463056466",
+        high: "289143051483791655410673577656337791506",
+      };
+
 export const computeAddress = (ethAddress: string) =>
   computeHashOnElements([
     "0x" + new Buffer("STARKNET_CONTRACT_ADDRESS", "ascii").toString("hex"),
     0,
     contractSalt,
     contractHash,
-    computeHashOnElements([ethAddress]),
+    computeHashOnElements([ethAddress, domainHash.low, domainHash.high]),
   ]);
-
-const RECOVERY_OFFSET = 27;
-
-const chainName = process.env.DOMAIN_NAME;
 
 export const typedData = {
   domain: {
@@ -227,10 +239,16 @@ export class EthAccountProvider extends Provider {
   };
 
   public deployAccount = async (): Promise<AddTransactionResponse> => {
-    return this.deployContract({
-      contract: contract_deploy_tx.contract_definition.program,
-      constructorCalldata: [hexToDecimalString(this.address)],
-      addressSalt: contractSalt,
+    return this.fetchEndpoint("add_transaction", undefined, {
+      type: "DEPLOY",
+      contract_address_salt: contractSalt,
+      constructor_calldata: [
+        hexToDecimalString(this.address),
+        domainHash.low,
+        domainHash.high,
+      ],
+      contract_definition:
+        contract_deploy_tx.contract_definition as CompressedCompiledContract,
     });
   };
 
