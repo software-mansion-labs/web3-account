@@ -1115,7 +1115,7 @@ python-versions = ">=3.5"
 
 [[package]]
 name = "starknet-devnet"
-version = "0.1.17"
+version = "0.1.18"
 description = "A local testnet for Starknet"
 category = "main"
 optional = false
@@ -1357,7 +1357,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7.12, <3.10"
-content-hash = "1e625311bf99e351b71343c6ee2ab17e3054b52b9fab53853c4513c5b39b644e"
+content-hash = "d1c83ae158e588eb4fadbf35fd6afa7346aec89de1f161f4185504c2c8763395"
 
 [metadata.files]
 aiohttp = [
@@ -2213,8 +2213,8 @@ sniffio = [
     {file = "sniffio-1.2.0.tar.gz", hash = "sha256:c4666eecec1d3f50960c6bdf61ab7bc350648da6c126e3cf6898d8cd4ddcd3de"},
 ]
 starknet-devnet = [
-    {file = "starknet_devnet-0.1.17-py3-none-any.whl", hash = "sha256:9f598a0e77d605e1e9767245f1b50cf91b8f9c192649041a5e975536961db90d"},
-    {file = "starknet_devnet-0.1.17.tar.gz", hash = "sha256:7c0b2b74e8c9a58d90c5cebe1cdec9ed9dccdf9111ebf68c695b905d501e8b30"},
+    {file = "starknet_devnet-0.1.18-py3-none-any.whl", hash = "sha256:df2529d1485b5941e0d92017da4828f69a64ebcc043ae441607987da25c2877e"},
+    {file = "starknet_devnet-0.1.18.tar.gz", hash = "sha256:dc1de8456bc4e3de1912d678804c7741b1ea347e6ca34c76e259e35360d7d175"},
 ]
 "starknet.py" = [
     {file = "starknet.py-0.1.8a0-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:3700c9372fb630ce83c7a43450bb8cd2a9431fd874326440836b0d04e4e1e3b4"},
