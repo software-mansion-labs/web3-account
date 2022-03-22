@@ -98,7 +98,7 @@ func execute{
 
     # validate nonce
     with_attr error_message(
-            "Invalid nonce."):
+            "Invalid nonce. Received: {nonce}, should be {current_nonce}"):
         assert current_nonce = nonce
     end
 
@@ -150,7 +150,7 @@ func validate_signature{
     let (stored) = get_eth_address()
     
     with_attr error_message(
-            "Decoed address does not match stored address"):
+            "Decoded address does not match expected address. Decoded: ${address}, expected: {stored}."):
         assert stored = address
     end
 
