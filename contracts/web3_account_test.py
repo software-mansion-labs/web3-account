@@ -26,8 +26,6 @@ GOERLI_CHAIN_ID = 5
 
 domain_hash = adapter_domain.hash_struct()
 
-print(f"DOMAIN HASH: 0x{domain_hash.hex()}")
-
 @pytest.mark.asyncio
 async def test_web3_account_valid_signatures():
     starknet = await Starknet.empty()
