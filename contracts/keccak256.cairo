@@ -10,40 +10,6 @@ from starkware.cairo.common.math_cmp import is_nn, is_le
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.pow import pow
 
-func mask{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value, byte_index, bytes_len) -> (
-        result : felt):
-    alloc_locals
-
-    let start_bit = byte_index * 8
-    let end_bit = start_bit + bytes_len * 8
-
-    # mask = 2 ^ (end_bit) - 2 ^ (start_bit)
-    let (mask_sub) = pow(2, start_bit)
-    let (mask) = pow(2, end_bit)
-    let mask = mask - mask_sub
-
-    let (result) = bitwise_and(value, mask)
-    return (result)
-end
-
-func move_left{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value, byte_index, bytes) -> (
-        result : felt):
-    alloc_locals
-    let (masked) = mask(value, byte_index, 1)
-    let (shift) = pow(2, bytes * 8)
-    let shifted = masked * shift
-    return (shifted)
-end
-
-func move_right{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value, byte_index, bytes) -> (
-        result : felt):
-    alloc_locals
-    let (masked) = mask(value, byte_index, 1)
-    let (shift) = pow(2, bytes * 8)
-    let shifted = masked / shift
-    return (shifted)
-end
-
 func keccak_result_to_uint256(
         r0 : felt, r1 : felt, r2 : felt, r3 : felt) -> (res : Uint256):
     let low = r3 + r2 * 2 ** 64
