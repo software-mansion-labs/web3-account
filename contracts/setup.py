@@ -19,7 +19,7 @@ eth_address = int(os.getenv("ETH_ADDRESS"), 0)
 client = Client(net=os.getenv("NODE_URL"), chain=StarknetChainId.TESTNET)
 
 account_script = Path("./contracts/web3_account.cairo").read_text()
-erc_20_scripts = Path("./contracts/cairo-contracts/contracts/token/ERC20.cairo").read_text()
+erc_20_scripts = Path("./contracts/cairo-contracts/openzeppelin/token/erc20/ERC20.cairo").read_text()
 ACCOUNT_ADDRESS_SALT = int(os.getenv("ACCOUNT_ADDRESS_SALT"))
 
 account_hash = Contract.compute_contract_hash(compilation_source=account_script)
@@ -60,6 +60,7 @@ erc20 = Contract.deploy_sync(
         "symbol": "COIN",
         "initial_supply": round(1e6 * 1e18),
         "recipient": account.address,
+        "decimals": 18,
     },
     salt=ACCOUNT_ADDRESS_SALT,
 ).deployed_contract
