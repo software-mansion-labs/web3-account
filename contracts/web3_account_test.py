@@ -22,9 +22,9 @@ TEST_CONTRACT_FILE = os.path.join(
 
 PRIVATE_KEY = "0xf95e53f6ba8055b25ac3c5576e818e57a84d5d68e03b73f5a441f0464f5980ae"
 ETH_ACCOUNT = Account.from_key(PRIVATE_KEY)
+GOERLI_CHAIN_ID = 5
 
 domain_hash = adapter_domain.hash_struct()
-
 
 @pytest.mark.asyncio
 async def test_web3_account_valid_signatures():
@@ -39,8 +39,7 @@ async def test_web3_account_valid_signatures():
         Path(ACCOUNT_FILE).read_text(),
         [
             int(ETH_ACCOUNT.address, 0),
-            int.from_bytes(domain_hash[16:], "big"),
-            int.from_bytes(domain_hash[:16], "big"),
+            GOERLI_CHAIN_ID,
         ]
     )
 
@@ -88,8 +87,7 @@ async def test_web3_account_invalid_signatures():
        Path(ACCOUNT_FILE).read_text(),
        [
             0x7FC37b5571e7128DB2CfA7714eDAA4e9Bedf0883,
-            int.from_bytes(domain_hash[16:], "big"),
-            int.from_bytes(domain_hash[:16], "big"),
+            GOERLI_CHAIN_ID,
        ]
    )
 
