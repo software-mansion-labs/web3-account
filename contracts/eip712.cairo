@@ -8,6 +8,9 @@ from starkware.cairo.common.bitwise import bitwise_and
 from contracts.keccak256 import uint256_keccak
 from openzeppelin.account.library import AccountCallArray
 
+const ENCODED_CALL_SIZE = 3 # in uint256
+const BYTES_IN_UINT256 = 32
+
 func fill_with_uint256{range_check_ptr}(result : Uint256*, values : felt*, values_len : felt) -> ():
     if values_len == 0:
         return ()
@@ -57,7 +60,7 @@ func encode_call{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     assert values[1] = Uint256(selector_l, selector_h)
 
     let (calldata_uint256) = map_to_uint256(calldata, calldata_len)
-    let (calldata_hash) = uint256_keccak(calldata_uint256, calldata_len * 32)
+    let (calldata_hash) = uint256_keccak(calldata_uint256, calldata_len * BYTES_IN_UINT256)
     assert values[2] = Uint256(calldata_hash.low, calldata_hash.high)
 
     return ()
@@ -76,7 +79,6 @@ func encode_calls_loop{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
 
    let call_info = call_array[call_index]
    let call_calldata = calldata + call_info.data_offset
-   let values = values + call_index * 6 # every call creates 3 uint256s, every uint256 = 2 felts
    encode_call(
         values=values,
         to=call_info.to,
@@ -85,6 +87,7 @@ func encode_calls_loop{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
         calldata=call_calldata,
    )
 
+   let values = values + ENCODED_CALL_SIZE * 2 # every uint256 = 2 felts
    encode_calls_loop(
         values,
         call_index+1,
@@ -115,8 +118,7 @@ func encode_call_array{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
         calldata=calldata,
     )
 
-    # Every call is 3 uint256
-    let (calls_hash) = uint256_keccak(values, call_array_len * 3 * 32)
+    let (calls_hash) = uint256_keccak(values, call_array_len * ENCODED_CALL_SIZE * BYTES_IN_UINT256)
 
     return (calls_hash)
 end
@@ -149,7 +151,7 @@ func get_hash{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     assert encoded_data[3] = Uint256(version_l, version_h)
 
     assert encoded_data[4] = Uint256(calls_hash.low, calls_hash.high)
-    let (data_hash) = uint256_keccak(encoded_data, 5 * 32)
+    let (data_hash) = uint256_keccak(encoded_data, 5 * BYTES_IN_UINT256)
 
     let prefix = PREFIX
     let (w1, prefix) = add_prefix(domain_hash.high, prefix)
@@ -160,6 +162,6 @@ func get_hash{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     assert signable_bytes[0] = Uint256(w0, w1)
     assert signable_bytes[1] = Uint256(w2, w3)
     assert signable_bytes[2] = Uint256(overflow, 0)
-    let (res) = uint256_keccak(signable_bytes, 32 + 32 + 2)
+    let (res) = uint256_keccak(signable_bytes, BYTES_IN_UINT256 + BYTES_IN_UINT256 + 2)
     return (res)
 end
