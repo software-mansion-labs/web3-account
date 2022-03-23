@@ -26,19 +26,48 @@ from openzeppelin.account.library import (
 from contracts.recover import calc_eth_address
 from contracts.eip712 import get_hash, AccountCallArray
 
-# Last 160 bits are used for Ethereum address, 90 bits are used for nonce
+# Last 160 bits are used for Ethereum address, 80 bits are used for nonce, 10 bits for chain
 @storage_var
 func account_state() -> (res : felt):
 end
 
-@storage_var
-func domain() -> (hash : Uint256):
+# Nonce shares storage with eth address and chain id, so it has to be shifted by 160 bits
+const ETH_ADDRESS_MASK = 2 ** 160 - 1
+const NONCE_SHIFT = 2 ** 160
+const NONCE_MASK = 2**240 - 1 - ETH_ADDRESS_MASK
+const CHAIN_SHIFT = 2 ** 240
+const CHAIN_MASK = 2**250 - 1 - NONCE_MASK - ETH_ADDRESS_MASK
+
+const TESTNET_CHAIN_ID = 5
+const MAINNET_CHAIN_ID = 1
+
+func chain_id_to_domain_hash(chain_id: felt) -> (domain_hash: Uint256):
+    if chain_id == TESTNET_CHAIN_ID:
+        # low, high
+        return (Uint256(0x1bb18384a07756a3fe7a43e26eca8d89, 0x666884c6dc07cb562e235eb814f153d1))
+    end
+
+    if chain_id == MAINNET_CHAIN_ID:
+        return (Uint256(0x57ea4c4d52c7642b6fde262c89ec9432, 0xadb4c166e1166524b587e32a53899284))
+    end
+
+    with_attr error_message("Invalid chain id {chain_id}."):
+        assert 1 = 0
+    end
+
+    # Never reached
+    return (Uint256(0,0))
 end
 
-# Nonce shares storage with eth address, so it has to be shifted by 160 bits
-const NONCE_UNIT = 2 ** 160
-const ETH_ADDRESS_MASK = 2 ** 160 - 1
-const NONCE_MASK = 2**250 - 1 - ETH_ADDRESS_MASK
+@view
+func get_domain_hash{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (domain_hash: Uint256):
+    alloc_locals
+    let (state) = account_state.read()
+    let (chain) = bitwise_and(state, CHAIN_MASK)
+    let chain = chain / CHAIN_SHIFT
+    let (domain_hash) = chain_id_to_domain_hash(chain)
+    return (domain_hash)
+end
 
 @view
 func get_eth_address{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (address: felt):
@@ -51,13 +80,13 @@ end
 func get_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (nonce : felt):
     let (state) = account_state.read()
     let (nonce) = bitwise_and(state, NONCE_MASK)
-    let nonce = nonce / NONCE_UNIT
+    let nonce = nonce / NONCE_SHIFT
     return (nonce)
 end
 
 func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> ():
     let (state) = account_state.read()
-    let new_state = state + NONCE_UNIT
+    let new_state = state + NONCE_SHIFT
 
     with_attr error_message(
             "Account state value should be 250 bits."):
@@ -70,19 +99,19 @@ func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
 end
 
 @constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(eth_address : felt, domain_hash : Uint256):
+func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(eth_address: felt, chain: felt):
+    alloc_locals
     with_attr error_message(
             "Invalid address length."):
-        assert_lt_felt(eth_address, NONCE_UNIT)
+        assert_lt_felt(eth_address, NONCE_SHIFT)
     end
+    tempvar range_check_ptr = range_check_ptr
 
-    with_attr error_message(
-            "Invalid domain hash value."):
-        uint256_check(domain_hash)
-    end
+    # Make sure proper chain is provided
+    chain_id_to_domain_hash(chain)
 
-    account_state.write(eth_address)
-    domain.write(domain_hash)
+    let state = eth_address + chain * CHAIN_SHIFT
+    account_state.write(state)
     return ()
 end
 
@@ -159,7 +188,9 @@ func validate_signature{
     version: felt,
 ) -> ():
     alloc_locals
-    let (domain_hash) = domain.read()
+    let (domain_hash) = get_domain_hash()
+    let low = domain_hash.low
+    let high = domain_hash.high
     let (signature_len, signature) = get_tx_signature()
 
     with_attr error_message(
