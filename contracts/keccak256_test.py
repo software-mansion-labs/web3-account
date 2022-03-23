@@ -62,6 +62,7 @@ async def test_uint256_keccak():
 
     info: StarknetContractCall = call.call_info
     print("KECCAK 160 CAIRO USAGE", info.cairo_usage)
+    print("expected", hex(expected))
     assert call.result[0] == to_uint256(expected)
 
     # 34 bytes
