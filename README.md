@@ -47,7 +47,7 @@ po devserver
 
 Run client:
 ```
-poe devdemo
+poe dev
 ```
 
 You can run interactive python shell with `account` and `erc20` available: 

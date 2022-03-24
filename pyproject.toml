@@ -31,7 +31,6 @@ starknet-devnet = "^0.1.18"
 
 [tool.poe.tasks]
 devclient = "yarn --cwd client dev"
-devdemo = "yarn --cwd client devdemo"
 devserver = "uvicorn adapter.api:app --reload --ssl-keyfile=./key.pem --ssl-certfile=./cert.pem --log-level=debug"
 devserver_http = "uvicorn adapter.api:app --reload --log-level=debug"
 lint = "pylint adapter"
