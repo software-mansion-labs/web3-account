@@ -1,6 +1,6 @@
-[submodule "keccak-cairo"]
-	path = contracts/keccak-cairo
-	url = git@github.com:marcellobardus/keccak-cairo.git
 [submodule "cairo-contracts"]
 	path = contracts/cairo-contracts
 	url = git@github.com:OpenZeppelin/cairo-contracts.git
+[submodule "contracts/fossil"]
+	path = contracts/fossil
+	url = https://github.com/OilerNetwork/fossil

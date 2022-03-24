@@ -1,7 +1,7 @@
 %lang starknet
-# %builtins pedersen range_check ecdsa bitwise
 
-from keccak import keccak256
+# fossil
+from starknet.lib.keccak import keccak256
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.bitwise import bitwise_and
@@ -10,65 +10,10 @@ from starkware.cairo.common.math_cmp import is_nn, is_le
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.pow import pow
 
-func mask{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value, byte_index, bytes_len) -> (
-        result : felt):
-    alloc_locals
-
-    let start_bit = byte_index * 8
-    let end_bit = start_bit + bytes_len * 8
-
-    # mask = 2 ^ (end_bit) - 2 ^ (start_bit)
-    let (mask_sub) = pow(2, start_bit)
-    let (mask) = pow(2, end_bit)
-    let mask = mask - mask_sub
-
-    let (result) = bitwise_and(value, mask)
-    return (result)
-end
-
-func move_left{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value, byte_index, bytes) -> (
-        result : felt):
-    alloc_locals
-    let (masked) = mask(value, byte_index, 1)
-    let (shift) = pow(2, bytes * 8)
-    let shifted = masked * shift
-    return (shifted)
-end
-
-func move_right{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value, byte_index, bytes) -> (
-        result : felt):
-    alloc_locals
-    let (masked) = mask(value, byte_index, 1)
-    let (shift) = pow(2, bytes * 8)
-    let shifted = masked / shift
-    return (shifted)
-end
-
-func reverse_bytes{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value : felt) -> (result : felt):
-    alloc_locals
-    let (l0) = move_left(value, 0, 7)
-    let (l1) = move_left(value, 1, 5)
-    let (l2) = move_left(value, 2, 3)
-    let (l3) = move_left(value, 3, 1)
-    let (l4) = move_right(value, 4, 1)
-    let (l5) = move_right(value, 5, 3)
-    let (l6) = move_right(value, 6, 5)
-    let (l7) = move_right(value, 7, 7)
-    let result = l0 + l1 + l2 + l3 + l4 + l5 + l6 + l7
-    return (result)
-end
-
-func keccak_result_to_uint256{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
+func keccak_result_to_uint256(
         r0 : felt, r1 : felt, r2 : felt, r3 : felt) -> (res : Uint256):
-    alloc_locals
-    # little to big endian
-    let (reversed0) = reverse_bytes(r0)
-    let (reversed1) = reverse_bytes(r1)
-    let (reversed2) = reverse_bytes(r2)
-    let (reversed3) = reverse_bytes(r3)
-
-    let low = reversed3 + reversed2 * 2 ** 64
-    let high = reversed1 + reversed0 * 2 ** 64
+    let low = r3 + r2 * 2 ** 64
+    let high = r1 + r0 * 2 ** 64
 
     return (Uint256(low, high))
 end
@@ -102,16 +47,11 @@ func split_uint256_array{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
 
     let value = [values]
     let (r0, r1, r2, r3) = split_uint256(value)
-    # To little endian
-    let (le0) = reverse_bytes(r0)
-    let (le1) = reverse_bytes(r1)
-    let (le2) = reverse_bytes(r2)
-    let (le3) = reverse_bytes(r3)
 
-    assert result[0] = le3
-    assert result[1] = le2
-    assert result[2] = le1
-    assert result[3] = le0
+    assert result[0] = r3
+    assert result[1] = r2
+    assert result[2] = r1
+    assert result[3] = r0
 
     split_uint256_array(values_len - 1, values + 2, result + 4)
     return (result)
@@ -130,11 +70,8 @@ func handle_leftover{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
     end
 
     let value = values[uint256_count]
-    let (new_0) = move_right(value.low, 1, 1)
-    let (new_1) = move_left(value.low, 0, 1)
-    let new_value = new_0 + new_1
     let target_index = uint256_count * 4
-    assert inputs[target_index] = new_value
+    assert inputs[target_index] = value.low
     return ()
 end
 
