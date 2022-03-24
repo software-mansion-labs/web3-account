@@ -44,7 +44,7 @@ shell = """
     starknet-devnet --host localhost --port 5001 --host 0.0.0.0 &
     DEVNET_PID=$!
     sleep 1
-    CAIRO_PATH="./contracts/fossil/contracts/:./contracts/cairo-contracts/" python contracts/setup.py
+    CAIRO_PATH="./contracts/fossil/contracts/:./contracts/cairo-contracts/" python contracts/setup.py devnet
     wait $DEVNET_PID
 """
 
