@@ -19,7 +19,7 @@ def to_uint256(v):
 
 async def deploy_contract_with_hints(starknet, code, calldata) -> StarknetContract:
     cairo_path = [
-        os.path.join(os.path.dirname(__file__), "./keccak-cairo/keccak/"),
+        os.path.join(os.path.dirname(__file__), "./fossil/contracts/"),
         os.path.join(os.path.dirname(__file__), "./cairo-contracts/"),
     ]
 
