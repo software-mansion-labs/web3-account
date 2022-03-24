@@ -5,7 +5,7 @@ import {
   EthAccountProvider,
   getAdapter,
   makeData,
-} from "./lib";
+} from "eip712-starknet-account";
 import { getMessage } from "eip-712";
 import { toBN } from "starknet/utils/number";
 

@@ -1,5 +1,9 @@
 import { CircularProgress, Stack, TextField, Typography } from "@mui/material";
-import { EthAccountProvider, computeAddress, getAdapter } from "./lib";
+import {
+  EthAccountProvider,
+  computeAddress,
+  getAdapter,
+} from "eip712-starknet-account";
 import {
   FormEventHandler,
   useCallback,
@@ -21,10 +25,10 @@ import Grid from "@mui/material/Grid";
 import LoadingButton from "@mui/lab/LoadingButton";
 import ReactDOM from "react-dom";
 import Skeleton from "@mui/material/Skeleton";
+import { getSelectorFromName } from "starknet/utils/hash";
 import { trackTxInProgress } from "./hooks";
 import useSWR from "swr";
 import useSWRImmutable from "swr/immutable";
-import { getSelectorFromName } from "starknet/utils/hash";
 
 const erc20Address =
   "0x5daf1a16e49474cadb53664d56df1ab6314116da7d02baef7925f8ddf567643";
