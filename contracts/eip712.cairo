@@ -8,7 +8,6 @@ from starkware.cairo.common.bitwise import bitwise_and
 from contracts.keccak256 import uint256_keccak
 from openzeppelin.account.library import AccountCallArray
 
-const ENCODED_CALL_SIZE = 3 # in uint256
 const BYTES_IN_UINT256 = 32
 
 func fill_with_uint256{range_check_ptr}(result : Uint256*, values : felt*, values_len : felt) -> ():
@@ -30,9 +29,10 @@ func map_to_uint256{range_check_ptr}(values : felt*, values_len : felt) -> (resu
 end
 
 const PREFIX = 0x1901
-# Has to be recalculated when type is changed with Payload.type_hash()
-const PAYLOAD_HASH_HIGH = 0xb4c1c484de108a9fb83c22de3fbffb49
-const PAYLOAD_HASH_LOW = 0x8ccbbccfea83811fbba4f9f72741b284
+const PAYLOAD_HASH_HIGH = 0x47f03fc876696aac574707fcf0883786
+const PAYLOAD_HASH_LOW = 0x4f820b0930851d2d35c46bb30210f667
+const CALL_HASH_HIGH = 0x714eac062377e0abde0013fdf51792c0
+const CALL_HASH_LOW = 0xe0e5eb253b24cbe03ed4c7aeeae37df4
 
 # value has to be a 16 byte word
 # prefix length = PREFIX_BITS
@@ -48,22 +48,26 @@ func add_prefix{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(value : felt, pr
 end
 
 func encode_call{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
-    values: Uint256*,
     to : felt, selector : felt, calldata_len : felt, calldata : felt*
-) -> ():
+) -> (hash: Uint256):
     alloc_locals
 
+    let (values : Uint256*) = alloc()
+    assert values[0] = Uint256(CALL_HASH_LOW, CALL_HASH_HIGH)
+
     let (to_h, to_l) = split_felt(to)
-    assert values[0] = Uint256(to_l, to_h)
+    assert values[1] = Uint256(to_l, to_h)
 
     let (selector_h, selector_l) = split_felt(selector)
-    assert values[1] = Uint256(selector_l, selector_h)
+    assert values[2] = Uint256(selector_l, selector_h)
 
     let (calldata_uint256) = map_to_uint256(calldata, calldata_len)
     let (calldata_hash) = uint256_keccak(calldata_uint256, calldata_len * BYTES_IN_UINT256)
-    assert values[2] = Uint256(calldata_hash.low, calldata_hash.high)
+    assert values[3] = Uint256(calldata_hash.low, calldata_hash.high)
 
-    return ()
+    let (res) = uint256_keccak(values, 4 * BYTES_IN_UINT256)
+
+    return (res)
 end
 
 func encode_calls_loop{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
@@ -79,15 +83,15 @@ func encode_calls_loop{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
 
    let call_info = call_array[call_index]
    let call_calldata = calldata + call_info.data_offset
-   encode_call(
-        values=values,
+   let (encoded) = encode_call(
         to=call_info.to,
         selector=call_info.selector,
         calldata_len=call_info.data_len,
         calldata=call_calldata,
    )
+   assert values[0] = encoded
 
-   let values = values + ENCODED_CALL_SIZE * 2 # every uint256 = 2 felts
+   let values = values + 2 # every uint256 = 2 felts
    encode_calls_loop(
         values,
         call_index+1,
@@ -118,7 +122,7 @@ func encode_call_array{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
         calldata=calldata,
     )
 
-    let (calls_hash) = uint256_keccak(values, call_array_len * ENCODED_CALL_SIZE * BYTES_IN_UINT256)
+    let (calls_hash) = uint256_keccak(values, call_array_len * BYTES_IN_UINT256)
 
     return (calls_hash)
 end

@@ -1,6 +1,6 @@
 import detectEthereumProvider = require("@metamask/detect-provider");
-import { MetaMaskInpageProvider } from "@metamask/providers";
-import { computeHashOnElements } from "starknet/utils/hash";
+import {MetaMaskInpageProvider} from "@metamask/providers";
+import {computeHashOnElements} from "starknet/utils/hash";
 import {
   Abi,
   AddTransactionResponse,
@@ -12,29 +12,18 @@ import {
   Signature,
   SignerInterface,
 } from "starknet";
-import { hexToDecimalString, toBN } from "starknet/utils/number";
-import { BN, fromRpcSig } from "ethereumjs-util";
+import {hexToDecimalString, toBN} from "starknet/utils/number";
+import {BN, fromRpcSig} from "ethereumjs-util";
 import contract_deploy_tx from "./web3_account.json";
+import {typedData} from "./typedData";
+import {parseSignature} from "./utils";
 
 const contractHash =
   "0x" + BigInt(process.env.ACCOUNT_CONTRACT_HASH).toString(16);
 const contractSalt =
   "0x" + BigInt(process.env.ACCOUNT_ADDRESS_SALT).toString(16);
 
-const RECOVERY_OFFSET = 27;
-
-const chainName = process.env.DOMAIN_NAME;
-
-const domainHash =
-  chainName === "Starknet Alpha Mainnet"
-    ? {
-        low: "116859380687502041814386376410414224434",
-        high: "230894979361313997426860759335020630660",
-      }
-    : {
-        low: "280762518416471191671265710498463056466",
-        high: "289143051483791655410673577656337791506",
-      };
+const chainId = process.env.CHAIN_ID ?? 5;
 
 export const computeAddress = (ethAddress: string) =>
   computeHashOnElements([
@@ -42,47 +31,8 @@ export const computeAddress = (ethAddress: string) =>
     0,
     contractSalt,
     contractHash,
-    computeHashOnElements([ethAddress, domainHash.low, domainHash.high]),
+    computeHashOnElements([ethAddress, chainId]),
   ]);
-
-export const typedData = {
-  domain: {
-    name: chainName,
-    version: "1",
-  },
-
-  // Refers to the keys of the *types* object below.
-  primaryType: "Payload",
-  types: {
-    EIP712Domain: [
-      { name: "name", type: "string" },
-      { name: "version", type: "string" },
-    ],
-    Payload: [
-      { name: "nonce", type: "uint256" },
-      { name: "address", type: "uint256" },
-      { name: "selector", type: "uint256" },
-      { name: "calldata", type: "uint256[]" },
-    ],
-  },
-};
-
-export const makeData = (payload: Payload): Record<string, any> => ({
-  ...typedData,
-  message: {
-    nonce: payload.nonce.toString(),
-    address: payload.address.toString(),
-    selector: payload.selector.toString(),
-    calldata: payload.calldata.map((v) => v.toString()),
-  },
-});
-
-interface Payload {
-  nonce: BN;
-  address: BN;
-  selector: BN;
-  calldata: BN[];
-}
 
 class MetamaskClient {
   constructor(protected provider: MetaMaskInpageProvider) {}
@@ -140,17 +90,15 @@ export class EthSigner implements SignerInterface {
       throw new Error("No transaction to sign");
     }
 
-    if (transactions.length > 1) {
-      throw new Error("Signing multiple transactions is not supported");
-    }
-
-    const transaction = transactions[0];
-
     const message = {
-      address: transaction.contractAddress,
-      calldata: transaction.calldata,
-      selector: transaction.entrypoint,
       nonce: transactionsDetail.nonce,
+      maxFee: transactionsDetail.maxFee,
+      version: 0,
+      calls: transactions.map((transaction) => ({
+        address: transaction.contractAddress,
+        selector: transaction.entrypoint,
+        calldata: transaction.calldata,
+      })),
     };
 
     const data = {
@@ -160,7 +108,7 @@ export class EthSigner implements SignerInterface {
 
     const signature = await this.sign(data);
 
-    return this.parseSignature(signature);
+    return parseSignature(signature);
   }
 
   sign(data: Record<string, any>): Promise<string> {
@@ -169,20 +117,6 @@ export class EthSigner implements SignerInterface {
       this.address,
       JSON.stringify(data)
     ) as Promise<string>;
-  }
-
-  parseSignature(signature: string): Signature {
-    const { v, r, s } = fromRpcSig(signature);
-
-    const rHigh = "0x" + r.slice(0, 16).toString("hex");
-    const rLow = "0x" + r.slice(16, 32).toString("hex");
-
-    const sHigh = "0x" + s.slice(0, 16).toString("hex");
-    const sLow = "0x" + s.slice(16, 32).toString("hex");
-
-    const vStr = "0x" + (v - RECOVERY_OFFSET).toString(16);
-
-    return [vStr, rLow, rHigh, sLow, sHigh];
   }
 }
 
@@ -222,15 +156,21 @@ export class EthAccountProvider extends Provider {
       this
     );
 
-    const result = await contract.invoke("execute", [
-      invocation.contractAddress,
-      invocation.entrypoint,
+    const callArray = [
+      [
+        invocation.contractAddress,
+        invocation.entrypoint,
+        0,
+        invocation.calldata?.length ?? 0,
+      ],
+    ];
+
+    return contract.invoke("__execute__", [
+      callArray,
       invocation.calldata,
       nonce,
       signature,
     ]);
-
-    return result;
   }
 
   public isAccountDeployed = async (): Promise<boolean> => {
@@ -244,8 +184,7 @@ export class EthAccountProvider extends Provider {
       contract_address_salt: contractSalt,
       constructor_calldata: [
         hexToDecimalString(this.address),
-        domainHash.low,
-        domainHash.high,
+        chainId.toString(),
       ],
       contract_definition:
         contract_deploy_tx.contract_definition as CompressedCompiledContract,
