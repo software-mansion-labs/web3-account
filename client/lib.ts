@@ -1,6 +1,6 @@
 import detectEthereumProvider = require("@metamask/detect-provider");
-import { MetaMaskInpageProvider } from "@metamask/providers";
-import { computeHashOnElements } from "starknet/utils/hash";
+import {MetaMaskInpageProvider} from "@metamask/providers";
+import {computeHashOnElements} from "starknet/utils/hash";
 import {
   Abi,
   AddTransactionResponse,
@@ -12,18 +12,17 @@ import {
   Signature,
   SignerInterface,
 } from "starknet";
-import { hexToDecimalString, toBN } from "starknet/utils/number";
-import { BN, fromRpcSig } from "ethereumjs-util";
+import {hexToDecimalString, toBN} from "starknet/utils/number";
+import {BN, fromRpcSig} from "ethereumjs-util";
 import contract_deploy_tx from "./web3_account.json";
+import {typedData} from "./typedData";
+import {parseSignature} from "./utils";
 
 const contractHash =
   "0x" + BigInt(process.env.ACCOUNT_CONTRACT_HASH).toString(16);
 const contractSalt =
   "0x" + BigInt(process.env.ACCOUNT_ADDRESS_SALT).toString(16);
 
-const RECOVERY_OFFSET = 27;
-
-const chainName = process.env.DOMAIN_NAME;
 const chainId = process.env.CHAIN_ID ?? 5;
 
 export const computeAddress = (ethAddress: string) =>
@@ -34,36 +33,6 @@ export const computeAddress = (ethAddress: string) =>
     contractHash,
     computeHashOnElements([ethAddress, chainId]),
   ]);
-
-export const typedData = {
-  domain: {
-    name: chainName,
-    version: "1",
-  },
-
-  // Refers to the keys of the *types* object below.
-  primaryType: "Payload",
-  types: {
-    EIP712Domain: [
-      { name: "name", type: "string" },
-      { name: "version", type: "string" },
-    ],
-    Call: [
-      { name: "address", type: "uint256" },
-      { name: "selector", type: "uint256" },
-      { name: "calldata", type: "uint256[]" },
-    ],
-    Payload: [
-      { name: "nonce", type: "uint256" },
-      { name: "maxFee", type: "uint256" },
-      { name: "version", type: "uint256" },
-      {
-        name: "calls",
-        type: "Call[]",
-      },
-    ],
-  },
-};
 
 class MetamaskClient {
   constructor(protected provider: MetaMaskInpageProvider) {}
@@ -139,7 +108,7 @@ export class EthSigner implements SignerInterface {
 
     const signature = await this.sign(data);
 
-    return this.parseSignature(signature);
+    return parseSignature(signature);
   }
 
   sign(data: Record<string, any>): Promise<string> {
@@ -148,20 +117,6 @@ export class EthSigner implements SignerInterface {
       this.address,
       JSON.stringify(data)
     ) as Promise<string>;
-  }
-
-  parseSignature(signature: string): Signature {
-    const { v, r, s } = fromRpcSig(signature);
-
-    const rHigh = "0x" + r.slice(0, 16).toString("hex");
-    const rLow = "0x" + r.slice(16, 32).toString("hex");
-
-    const sHigh = "0x" + s.slice(0, 16).toString("hex");
-    const sLow = "0x" + s.slice(16, 32).toString("hex");
-
-    const vStr = "0x" + (v - RECOVERY_OFFSET).toString(16);
-
-    return [vStr, rLow, rHigh, sLow, sHigh];
   }
 }
 
@@ -210,14 +165,12 @@ export class EthAccountProvider extends Provider {
       ],
     ];
 
-    const result = await contract.invoke("__execute__", [
+    return contract.invoke("__execute__", [
       callArray,
       invocation.calldata,
       nonce,
       signature,
     ]);
-
-    return result;
   }
 
   public isAccountDeployed = async (): Promise<boolean> => {

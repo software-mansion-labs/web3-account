@@ -3,16 +3,11 @@ from pathlib import Path
 
 import pytest
 from eth_account import Account
-from eth_account._utils.signing import to_standard_v
-from eth_account.messages import SignableMessage
-from hexbytes import HexBytes
-from starkware.starknet.public.abi import get_selector_from_name
+
 from starkware.starknet.testing.objects import StarknetTransactionExecutionInfo, StarknetContractCall
 from starkware.starknet.testing.starknet import Starknet
-from starkware.starkware_utils.error_handling import StarkException
 
-from contracts.test_utils import deploy_contract_with_hints, to_uint256
-from adapter.eip712 import Payload, adapter_domain, Call
+from contracts.test_utils import deploy_contract_with_hints
 
 ACCOUNT_FILE = os.path.join(
     os.path.dirname(__file__), "./web3_account.cairo")
@@ -24,14 +19,96 @@ PRIVATE_KEY = "0xf95e53f6ba8055b25ac3c5576e818e57a84d5d68e03b73f5a441f0464f5980a
 ETH_ACCOUNT = Account.from_key(PRIVATE_KEY)
 GOERLI_CHAIN_ID = 5
 
-domain_hash = adapter_domain.hash_struct()
+# Generated from generateHashes
+test_cases = [
+    {
+        "message": {
+            "nonce": "0",
+            "maxFee": "0",
+            "version": "0",
+            "calls": [
+                {
+                    "address": "0x7156fb3c40b9636425931f57a87c507aa472d1b97d52859e5c68b9ba2b3570",
+                    "selector": "0x1326ba54c1a0ca5f0593bfe36b9adeaf723e0ce0e8737bd108812706386cefb",
+                    "calldata": [
+                        0,
+                        1,
+                        2
+                    ]
+                }
+            ]
+        },
+        "result": 3,
+        "signature": [
+            "0x1",
+            "0x26a92a79db8bded9d19432be42a9485b",
+            "0x5eedeca8e2cd59259533ed85d07dce07",
+            "0xadff5fa94ac1b24c91bd926f818e285f",
+            "0x2436377b8b6f4b7dbcd3408bc513cd45"
+        ]
+    },
+    {
+        "message": {
+            "nonce": "1",
+            "maxFee": "0",
+            "version": "0",
+            "calls": [
+                {
+                    "address": "0x7156fb3c40b9636425931f57a87c507aa472d1b97d52859e5c68b9ba2b3570",
+                    "selector": "0x1326ba54c1a0ca5f0593bfe36b9adeaf723e0ce0e8737bd108812706386cefb",
+                    "calldata": [
+                        1,
+                        2,
+                        3
+                    ]
+                }
+            ]
+        },
+        "result": 6,
+        "signature": [
+            "0x0",
+            "0xb48999fc7b519065e517c40c7057bda5",
+            "0x0b1703e4e8401a4422c57fb7029cc463",
+            "0xbc6785b688fda1e22cf13e38819eecf0",
+            "0x230e8ce3598b2c879dcc2c2cc84a2276"
+        ]
+    },
+    {
+        "message": {
+            "nonce": "2",
+            "maxFee": "0",
+            "version": "0",
+            "calls": [
+                {
+                    "address": "0x7156fb3c40b9636425931f57a87c507aa472d1b97d52859e5c68b9ba2b3570",
+                    "selector": "0x1326ba54c1a0ca5f0593bfe36b9adeaf723e0ce0e8737bd108812706386cefb",
+                    "calldata": [
+                        2,
+                        3,
+                        4
+                    ]
+                }
+            ]
+        },
+        "result": 9,
+        "signature": [
+            "0x0",
+            "0x7be3b80b70fa7a5bc1a0a8db60e44326",
+            "0xc57755d099e481c2ae552daa0235315a",
+            "0x3303f59c71e9b151716667f7966b2464",
+            "0x4db3d8a33edfa009ecb2027b8bbef02c"
+        ]
+    }
+]
+
 
 @pytest.mark.asyncio
 async def test_web3_account_valid_signatures():
     starknet = await Starknet.empty()
 
-    target_contract = await starknet.deploy(
+    await starknet.deploy(
         source=TEST_CONTRACT_FILE,
+        contract_address_salt=0,
     )
 
     account = await deploy_contract_with_hints(
@@ -43,75 +120,20 @@ async def test_web3_account_valid_signatures():
         ]
     )
 
-    for i in range(4):
-        call = Call(
-            address=target_contract.contract_address,
-            selector=get_selector_from_name("sum_three_values"),
-            calldata=[i, i + 1, i + 2],
-        )
-        payload = Payload(nonce=i, maxFee=0, version=0, calls=[call])
-        hashed_payload = payload.signable_bytes(adapter_domain)[2:]
-        # Remove header and version
-        signed = ETH_ACCOUNT.sign_message(SignableMessage(HexBytes(b"\x01"), HexBytes(b""), HexBytes(hashed_payload)))
+    for test_case in test_cases:
+        message = test_case["message"]
+        call = message["calls"][0]
 
         invocation: StarknetTransactionExecutionInfo = await account.__execute__(
             call_array=[
-                (call["address"], call["selector"], 0, len(call["calldata"]))
+                (int(call["address"], 0), int(call["selector"], 0), 0, len(call["calldata"]))
             ],
             calldata=call["calldata"],
-            nonce=payload["nonce"]
+            nonce=int(message["nonce"], 0)
         ).invoke(
-            signature=[
-                to_standard_v(signed.v),
-                *to_uint256(signed.r),
-                *to_uint256(signed.s),
-            ]
+            signature=test_case["signature"]
         )
 
         info: StarknetContractCall = invocation.call_info
-        print(f"web3 account execute {i}", info.cairo_usage)
-        assert invocation.result[0][0] == sum(call["calldata"])
-
-
-@pytest.mark.asyncio
-async def test_web3_account_invalid_signatures():
-   starknet = await Starknet.empty()
-
-   target_contract = await starknet.deploy(
-       source=TEST_CONTRACT_FILE,
-   )
-
-   # Use a different address
-   account = await deploy_contract_with_hints(
-       starknet,
-       Path(ACCOUNT_FILE).read_text(),
-       [
-            0x7FC37b5571e7128DB2CfA7714eDAA4e9Bedf0883,
-            GOERLI_CHAIN_ID,
-       ]
-   )
-
-   call = Call(
-       address=target_contract.contract_address,
-       selector=get_selector_from_name("sum_three_values"),
-       calldata=[1,2,3],
-   )
-   payload = Payload(nonce=0, maxFee=0, version=0, calls=[call])
-
-   hashed_payload = payload.signable_bytes(adapter_domain)[2:]
-   signed = ETH_ACCOUNT.sign_message(SignableMessage(HexBytes(b"\x01"), HexBytes(b""), HexBytes(hashed_payload)))
-
-   with pytest.raises(StarkException):
-       await account.__execute__(
-            call_array=[
-                (call["address"], call["selector"], 0, len(call["calldata"]))
-            ],
-            calldata=call["calldata"],
-            nonce=payload["nonce"]
-        ).invoke(
-            signature=[
-                to_standard_v(signed.v),
-                *to_uint256(signed.r),
-                *to_uint256(signed.s),
-            ]
-        )
+        print(f"web3 account execute {message['nonce']}", info.cairo_usage)
+        assert invocation.result[0][0] == test_case["result"]
