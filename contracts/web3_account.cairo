@@ -44,11 +44,11 @@ const MAINNET_CHAIN_ID = 1
 func chain_id_to_domain_hash(chain_id: felt) -> (domain_hash: Uint256):
     if chain_id == TESTNET_CHAIN_ID:
         # low, high
-        return (Uint256(0x1bb18384a07756a3fe7a43e26eca8d89, 0x666884c6dc07cb562e235eb814f153d1))
+        return (Uint256(0x1315bc26e0a4f976bb3f649475ef6193, 0xdb8ed783e9bc3dbcdb61cf4544b464e2))
     end
 
     if chain_id == MAINNET_CHAIN_ID:
-        return (Uint256(0x57ea4c4d52c7642b6fde262c89ec9432, 0xadb4c166e1166524b587e32a53899284))
+        return (Uint256(0x48b4069472bb322fbeef1215f6aac583, 0xacc9506a403c36e093633648560ab569))
     end
 
     with_attr error_message("Invalid chain id {chain_id}."):
