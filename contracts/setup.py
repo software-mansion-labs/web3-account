@@ -1,7 +1,8 @@
 import json
 import os
-import sys
 from pathlib import Path
+from argparse import ArgumentParser
+
 
 from starknet_py.contract import Contract
 from starknet_py.net import Client
@@ -10,23 +11,26 @@ from starknet_py.utils.compiler.starknet_compile import starknet_compile
 from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.services.api.contract_definition import ContractDefinition
 
-from eip712_structs import make_domain
-
 if __name__ != "__main__":
     raise Exception("Not run as a script")
 
-eth_address = int(os.getenv("ETH_ADDRESS"), 0)
-client = Client(net=os.getenv("NODE_URL"), chain=StarknetChainId.TESTNET)
+parser = ArgumentParser()
+parser.add_argument('network', choices=["testnet", "devnet"])
+
+network = parser.parse_args().network
+
+if network == "devnet":
+    client = Client(net=os.getenv("NODE_URL"), chain=StarknetChainId.TESTNET)
+else:
+    client = Client("testnet")
 
 account_script = Path("./contracts/web3_account.cairo").read_text()
-erc_20_scripts = Path("./contracts/cairo-contracts/openzeppelin/token/erc20/ERC20.cairo").read_text()
+erc_20_script = Path("./contracts/demo_token.cairo").read_text()
 ACCOUNT_ADDRESS_SALT = int(os.getenv("ACCOUNT_ADDRESS_SALT"))
 
 account_hash = Contract.compute_contract_hash(compilation_source=account_script)
 print("ACCOUNT CONTRACT HASH:", account_hash)
 
-domain_name = os.getenv("DOMAIN_NAME", )
-adapter_domain = make_domain(name=domain_name, version="1")
 
 GOERLI_CHAIN_ID = 5
 
@@ -40,27 +44,17 @@ dump = Transaction.Schema().dump(obj=Deploy(
 ))
 Path("client/web3_account.json").write_text(json.dumps(dump))
 
-account = Contract.deploy_sync(
+deployment = Contract.deploy_sync(
     client=client,
-    compilation_source=account_script,
-    constructor_args=[eth_address, GOERLI_CHAIN_ID],
-    salt=ACCOUNT_ADDRESS_SALT,
-).deployed_contract
-
-print("ACCOUNT ADDRESS:", account.address)
-
-erc20 = Contract.deploy_sync(
-    client=client,
-    compilation_source=erc_20_scripts,
+    compilation_source=erc_20_script,
     constructor_args={
         "name": "COIN",
         "symbol": "COIN",
-        "initial_supply": round(1e6 * 1e18),
-        "recipient": account.address,
-        "decimals": 18,
     },
     salt=ACCOUNT_ADDRESS_SALT,
-).deployed_contract
+)
+deployment.wait_for_acceptance_sync()
+erc20 = deployment.deployed_contract
 
 print("ERC20 ADDRESS:", erc20.address)
 print("ERC20 ADDRESS TRANSFER SELECTOR", get_selector_from_name("transfer"))

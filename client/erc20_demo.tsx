@@ -27,10 +27,7 @@ import useSWRImmutable from "swr/immutable";
 import { getSelectorFromName } from "starknet/utils/hash";
 
 const erc20Address =
-  "0x79fe5e4c2ad0924c7473ace895a4bf98f8def4ec8da69973de2ff054085c4e5";
-
-// Token has 18 decimal places
-const decimalShift = new BN(10).pow(new BN(18));
+  "0x1a5c135cc2f7db9e0aa245dfe0152efdc4839c28c52000006feb9dcff9b8210";
 
 const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
   const { data: balance, mutate: revalidateBalance } = useSWR(
@@ -43,7 +40,7 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
       });
       const [low, high] = result;
       // We have 18 decimal places
-      return uint256ToBN({ low, high }).div(decimalShift);
+      return uint256ToBN({ low, high });
     }
   );
 
@@ -61,7 +58,7 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
     }
 
     try {
-      const parsedAmount = bnToUint256(toBN(amount, 10).mul(decimalShift));
+      const parsedAmount = bnToUint256(toBN(amount, 10));
       const starknetAddress = computeAddress(address);
       return [
         starknetAddress,
@@ -94,9 +91,27 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
       .finally(() => setLoading(false));
   };
 
+  const topUp = () => {
+    if (loading) {
+      return;
+    }
+
+    setLoading(true);
+    lib
+      .invokeFunction({
+        contractAddress: erc20Address,
+        entrypoint: getSelectorFromName("topup"),
+        calldata: [lib.starknetAddress],
+      })
+      .then(trackTx)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }
+
   return (
     <Stack gap={2}>
       <Typography variant="h3">Token wallet</Typography>
+      <Typography>This demo operates on a dummy ERC20 with faucet functionality.</Typography>
       <Typography>
         Your balance:{" "}
         {balance ? (
@@ -105,6 +120,17 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
           <Skeleton style={{ display: "inline-block", width: 100 }} />
         )}
       </Typography>
+      <Stack gap={2}>
+        <Typography variant="h6">Faucet</Typography>
+        <LoadingButton
+          type="submit"
+          loading={loading || !!txInProgress}
+          variant="contained"
+          onClick={topUp}
+        >
+          Get dummy tokens
+        </LoadingButton>
+      </Stack>
       <Stack gap={2} component="form" onSubmit={transferTokens}>
         <Typography variant="h6">Transfer</Typography>
         <TextField
