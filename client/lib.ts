@@ -24,17 +24,7 @@ const contractSalt =
 const RECOVERY_OFFSET = 27;
 
 const chainName = process.env.DOMAIN_NAME;
-
-const domainHash =
-  chainName === "Starknet Alpha Mainnet"
-    ? {
-        low: "116859380687502041814386376410414224434",
-        high: "230894979361313997426860759335020630660",
-      }
-    : {
-        low: "280762518416471191671265710498463056466",
-        high: "289143051483791655410673577656337791506",
-      };
+const chainId = process.env.CHAIN_ID ?? 5;
 
 export const computeAddress = (ethAddress: string) =>
   computeHashOnElements([
@@ -42,7 +32,7 @@ export const computeAddress = (ethAddress: string) =>
     0,
     contractSalt,
     contractHash,
-    computeHashOnElements([ethAddress, domainHash.low, domainHash.high]),
+    computeHashOnElements([ethAddress, chainId]),
   ]);
 
 export const typedData = {
@@ -58,31 +48,22 @@ export const typedData = {
       { name: "name", type: "string" },
       { name: "version", type: "string" },
     ],
-    Payload: [
-      { name: "nonce", type: "uint256" },
+    Call: [
       { name: "address", type: "uint256" },
       { name: "selector", type: "uint256" },
       { name: "calldata", type: "uint256[]" },
     ],
+    Payload: [
+      { name: "nonce", type: "uint256" },
+      { name: "maxFee", type: "uint256" },
+      { name: "version", type: "uint256" },
+      {
+        name: "calls",
+        type: "Call[]",
+      },
+    ],
   },
 };
-
-export const makeData = (payload: Payload): Record<string, any> => ({
-  ...typedData,
-  message: {
-    nonce: payload.nonce.toString(),
-    address: payload.address.toString(),
-    selector: payload.selector.toString(),
-    calldata: payload.calldata.map((v) => v.toString()),
-  },
-});
-
-interface Payload {
-  nonce: BN;
-  address: BN;
-  selector: BN;
-  calldata: BN[];
-}
 
 class MetamaskClient {
   constructor(protected provider: MetaMaskInpageProvider) {}
@@ -140,17 +121,15 @@ export class EthSigner implements SignerInterface {
       throw new Error("No transaction to sign");
     }
 
-    if (transactions.length > 1) {
-      throw new Error("Signing multiple transactions is not supported");
-    }
-
-    const transaction = transactions[0];
-
     const message = {
-      address: transaction.contractAddress,
-      calldata: transaction.calldata,
-      selector: transaction.entrypoint,
       nonce: transactionsDetail.nonce,
+      maxFee: transactionsDetail.maxFee,
+      version: 0,
+      calls: transactions.map((transaction) => ({
+        address: transaction.contractAddress,
+        selector: transaction.entrypoint,
+        calldata: transaction.calldata,
+      })),
     };
 
     const data = {
@@ -222,9 +201,17 @@ export class EthAccountProvider extends Provider {
       this
     );
 
-    const result = await contract.invoke("execute", [
-      invocation.contractAddress,
-      invocation.entrypoint,
+    const callArray = [
+      [
+        invocation.contractAddress,
+        invocation.entrypoint,
+        0,
+        invocation.calldata?.length ?? 0,
+      ],
+    ];
+
+    const result = await contract.invoke("__execute__", [
+      callArray,
       invocation.calldata,
       nonce,
       signature,
@@ -244,8 +231,7 @@ export class EthAccountProvider extends Provider {
       contract_address_salt: contractSalt,
       constructor_calldata: [
         hexToDecimalString(this.address),
-        domainHash.low,
-        domainHash.high,
+        chainId.toString(),
       ],
       contract_definition:
         contract_deploy_tx.contract_definition as CompressedCompiledContract,
