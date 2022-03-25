@@ -26,8 +26,7 @@ import useSWR from "swr";
 import useSWRImmutable from "swr/immutable";
 import { getSelectorFromName } from "starknet/utils/hash";
 
-const erc20Address =
-  "0x1a5c135cc2f7db9e0aa245dfe0152efdc4839c28c52000006feb9dcff9b8210";
+const erc20Address = process.env.ERC20_ADDRESS;
 
 const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
   const { data: balance, mutate: revalidateBalance } = useSWR(
@@ -112,6 +111,9 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
     <Stack gap={2}>
       <Typography variant="h3">Token wallet</Typography>
       <Typography>This demo operates on a dummy ERC20 with faucet functionality.</Typography>
+      <Typography>
+        Your StarkNet address: <a href={`https://goerli.voyager.online/contract/${lib.starknetAddress}#transactions`}>{lib.starknetAddress}</a>
+      </Typography>
       <Typography>
         Your balance:{" "}
         {balance ? (
