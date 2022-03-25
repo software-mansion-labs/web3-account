@@ -5,7 +5,6 @@ import { computeHashOnElements } from 'starknet/utils/hash';
 import { contractHash, contractSalt } from './config';
 import { NetworkName } from './types';
 
-
 const RECOVERY_OFFSET = 27;
 
 export const parseSignature = (signature: string): Signature => {
