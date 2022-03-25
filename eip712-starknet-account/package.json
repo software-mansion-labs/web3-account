@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "EIP712 Starknet Account",
   "main": "build/main/index.js",
-  "typings": "build/main/index.d.ts",
   "module": "build/module/index.js",
   "license": "MIT",
   "keywords": [],
