@@ -1,3 +1,5 @@
+import { EthAccountProvider } from './account-provider';
+
 export type NetworkName = 'mainnet-alpha' | 'goerli-alpha';
 
 export type Chain = {
@@ -17,3 +19,7 @@ export type AdapterOptions = {
   starknet: ProviderOptions;
   network: NetworkName;
 };
+
+export type AccountsChangeHandler = (accounts: EthAccountProvider[]) => void;
+
+export type HandlerRemover = () => void;
