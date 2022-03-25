@@ -42,7 +42,7 @@ dump = Transaction.Schema().dump(obj=Deploy(
     contract_definition=definition,
     constructor_calldata=[],
 ))
-Path("client/web3_account.json").write_text(json.dumps(dump))
+Path("eip712-starknet-account/src/web3_account.json").write_text(json.dumps(dump))
 
 deployment = Contract.deploy_sync(
     client=client,

@@ -1,5 +1,9 @@
+import {
+  AdapterOptions,
+  EthAccountProvider,
+  getAdapter,
+} from "eip712-starknet-account";
 import { CircularProgress, Stack, TextField, Typography } from "@mui/material";
-import { EthAccountProvider, computeAddress, getAdapter } from "./lib";
 import {
   FormEventHandler,
   useCallback,
@@ -10,7 +14,6 @@ import {
 import { bnToUint256, uint256ToBN } from "starknet/utils/uint256";
 import { hexToDecimalString, toBN } from "starknet/utils/number";
 
-import { BN } from "ethereumjs-util";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -21,10 +24,10 @@ import Grid from "@mui/material/Grid";
 import LoadingButton from "@mui/lab/LoadingButton";
 import ReactDOM from "react-dom";
 import Skeleton from "@mui/material/Skeleton";
+import { getSelectorFromName } from "starknet/utils/hash";
 import { trackTxInProgress } from "./hooks";
 import useSWR from "swr";
 import useSWRImmutable from "swr/immutable";
-import { getSelectorFromName } from "starknet/utils/hash";
 
 const erc20Address = process.env.ERC20_ADDRESS;
 
@@ -33,7 +36,7 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
     lib.address && "balance",
     async () => {
       const { result } = await lib.callContract({
-        calldata: [hexToDecimalString(computeAddress(lib.address))],
+        calldata: [hexToDecimalString(lib.starknetAddress)],
         contractAddress: erc20Address,
         entrypoint: "balanceOf",
       });
@@ -58,7 +61,7 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
 
     try {
       const parsedAmount = bnToUint256(toBN(amount, 10));
-      const starknetAddress = computeAddress(address);
+      const starknetAddress = lib.computeAddress(address);
       return [
         starknetAddress,
         parsedAmount.low.toString(16),
@@ -105,14 +108,21 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
       .then(trackTx)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }
+  };
 
   return (
     <Stack gap={2}>
       <Typography variant="h3">Token wallet</Typography>
-      <Typography>This demo operates on a dummy ERC20 with faucet functionality.</Typography>
       <Typography>
-        Your StarkNet address: <a href={`https://goerli.voyager.online/contract/${lib.starknetAddress}#transactions`}>{lib.starknetAddress}</a>
+        This demo operates on a dummy ERC20 with faucet functionality.
+      </Typography>
+      <Typography>
+        Your StarkNet address:{" "}
+        <a
+          href={`https://goerli.voyager.online/contract/${lib.starknetAddress}#transactions`}
+        >
+          {lib.starknetAddress}
+        </a>
       </Typography>
       <Typography>
         Your balance:{" "}
@@ -205,11 +215,16 @@ const CreateAccountForm: React.FC<{
   );
 };
 
+const config: AdapterOptions = {
+  starknet: { baseUrl: "http://localhost:5001" },
+  network: "goerli-alpha",
+};
+
 const App = () => {
   const [requestedAccount, setRequestedAccount] =
     useState<EthAccountProvider>();
   const { data } = useSWRImmutable("adapter", async () => {
-    const adapter = await getAdapter();
+    const adapter = await getAdapter(config);
     const accounts = await adapter.getAccounts();
     const account = accounts?.[0];
     return { adapter, account };
