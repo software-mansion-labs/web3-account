@@ -41,6 +41,15 @@ const CHAIN_MASK = 2**250 - 1 - NONCE_MASK - ETH_ADDRESS_MASK
 const TESTNET_CHAIN_ID = 5
 const MAINNET_CHAIN_ID = 1
 
+func initialized_account_only():
+    with_attr error_message(
+            "Account not initialized."):
+        let (state) = account_state.read()
+        assert_not_zero(state)
+    end
+    return ()
+end
+
 func chain_id_to_domain_hash(chain_id: felt) -> (domain_hash: Uint256):
     if chain_id == TESTNET_CHAIN_ID:
         # low, high
@@ -62,6 +71,8 @@ end
 @view
 func get_domain_hash{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (domain_hash: Uint256):
     alloc_locals
+    initialized_account_only()
+
     let (state) = account_state.read()
     let (chain) = bitwise_and(state, CHAIN_MASK)
     let chain = chain / CHAIN_SHIFT
@@ -71,6 +82,8 @@ end
 
 @view
 func get_eth_address{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (address: felt):
+    initialized_account_only()
+
     let (state) = account_state.read()
     let (address) = bitwise_and(state, ETH_ADDRESS_MASK)
     return (address)
@@ -78,6 +91,8 @@ end
 
 @view
 func get_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (nonce : felt):
+    initialized_account_only()
+
     let (state) = account_state.read()
     let (nonce) = bitwise_and(state, NONCE_MASK)
     let nonce = nonce / NONCE_SHIFT
@@ -85,6 +100,8 @@ func get_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
 end
 
 func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> ():
+    initialized_account_only()
+
     let (state) = account_state.read()
     let new_state = state + NONCE_SHIFT
 
@@ -98,9 +115,15 @@ func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     return ()
 end
 
-@constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(eth_address: felt, chain: felt):
+func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(eth_address: felt, chain: felt):
     alloc_locals
+    let (current_state) = account_state.read()
+
+    with_attr error_message(
+            "Account was already initialized."):
+        assert current_state = 0
+    end
+
     with_attr error_message(
             "Invalid address length."):
         assert_lt_felt(eth_address, NONCE_SHIFT)
@@ -116,7 +139,7 @@ func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
 end
 
 @external
-func __execute__{
+func execute{
     syscall_ptr : felt*,
     pedersen_ptr : HashBuiltin*,
     range_check_ptr,
