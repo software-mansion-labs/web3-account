@@ -216,7 +216,7 @@ const CreateAccountForm: React.FC<{
 };
 
 const config: AdapterOptions = {
-  starknet: { baseUrl: "http://localhost:5001" },
+  starknet: { baseUrl: process.env.NODE_URL },
   network: "goerli-alpha",
 };
 
