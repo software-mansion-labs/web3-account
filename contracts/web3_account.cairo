@@ -41,7 +41,9 @@ const CHAIN_MASK = 2**250 - 1 - NONCE_MASK - ETH_ADDRESS_MASK
 const TESTNET_CHAIN_ID = 5
 const MAINNET_CHAIN_ID = 1
 
-func initialized_account_only():
+func initialized_account_only{
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr 
+}():
     with_attr error_message(
             "Account not initialized."):
         let (state) = account_state.read()

@@ -2,7 +2,7 @@ import { fromRpcSig } from 'ethereumjs-util';
 import { Signature } from 'starknet';
 import { computeHashOnElements } from 'starknet/utils/hash';
 
-import { contractHash, contractSalt } from './config';
+import { contractHash, contractSalt, implementationAddress } from './config';
 import { NetworkName } from './types';
 
 const RECOVERY_OFFSET = 27;
@@ -27,7 +27,7 @@ export const computeAddress = (ethAddress: string, chainId: number) =>
     0,
     contractSalt,
     contractHash,
-    computeHashOnElements([ethAddress, chainId]),
+    computeHashOnElements([implementationAddress, ethAddress, chainId]),
   ]);
 
 export const chainForNetwork = (network: NetworkName) => {
