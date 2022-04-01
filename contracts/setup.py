@@ -25,36 +25,47 @@ else:
     client = Client("testnet")
 
 account_script = Path("./contracts/web3_account.cairo").read_text()
+proxy_script = Path("./contracts/proxy.cairo").read_text()
 erc_20_script = Path("./contracts/demo_token.cairo").read_text()
-ACCOUNT_ADDRESS_SALT = int(os.getenv("ACCOUNT_ADDRESS_SALT"))
+CONTRACT_SALT = int(os.getenv("CONTRACT_SALT"))
 
-account_hash = Contract.compute_contract_hash(compilation_source=account_script)
-print("ACCOUNT CONTRACT HASH:", account_hash)
-
+proxy_hash = Contract.compute_contract_hash(compilation_source=proxy_script)
+print("PROXY CONTRACT HASH:", proxy_hash)
 
 GOERLI_CHAIN_ID = 5
 
 # Save contract definition
 # Starknet.js compresses program in a different way
-definition = ContractDefinition.loads(starknet_compile(account_script))
+definition = ContractDefinition.loads(starknet_compile(proxy_script))
 dump = Transaction.Schema().dump(obj=Deploy(
-    contract_address_salt=ACCOUNT_ADDRESS_SALT,
+    contract_address_salt=CONTRACT_SALT,
     contract_definition=definition,
     constructor_calldata=[],
 ))
-Path("eip712-starknet-account/src/web3_account.json").write_text(json.dumps(dump))
+Path("eip712-starknet-account/src/web3_account_proxy.json").write_text(json.dumps(dump))
 
-deployment = Contract.deploy_sync(
+account_deployment = Contract.deploy_sync(
+    client=client,
+    compilation_source=account_script,
+    salt=CONTRACT_SALT
+)
+
+account_deployment.wait_for_acceptance_sync()
+account = account_deployment.deployed_contract
+
+print("ACCOUNT ADDRESS:", account.address)
+
+erc20_deployment = Contract.deploy_sync(
     client=client,
     compilation_source=erc_20_script,
     constructor_args={
         "name": "COIN",
         "symbol": "COIN",
     },
-    salt=ACCOUNT_ADDRESS_SALT,
+    salt=CONTRACT_SALT,
 )
-deployment.wait_for_acceptance_sync()
-erc20 = deployment.deployed_contract
+erc20_deployment.wait_for_acceptance_sync()
+erc20 = erc20_deployment.deployed_contract
 
 print("ERC20 ADDRESS:", erc20.address)
 print("ERC20 ADDRESS TRANSFER SELECTOR", get_selector_from_name("transfer"))

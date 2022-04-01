@@ -11,7 +11,7 @@ from adapter.eth_account import compute_eth_account_address
 if __name__ != "__main__":
     raise Exception("Must be run as a script")
 
-ACCOUNT_ADDRESS_SALT = int(os.getenv("ACCOUNT_ADDRESS_SALT"))
+CONTRACT_SALT = int(os.getenv("CONTRACT_SALT"))
 eth_address = int(sys.argv[1], 0)
 client = Client(net="http://localhost:5001", chain=StarknetChainId.TESTNET)
 
@@ -25,7 +25,7 @@ erc20_address = Contract.compute_address(
         "initial_supply": round(1e6 * 1e18),
         "recipient": account_address,
     },
-    salt=ACCOUNT_ADDRESS_SALT,
+    salt=CONTRACT_SALT,
 )
 print("ERC ADDRESS", erc20_address)
 

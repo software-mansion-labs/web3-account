@@ -10,11 +10,11 @@ import {
 import { hexToDecimalString, toBN } from 'starknet/utils/number';
 
 import { MetamaskClient } from '../client';
-import { contractSalt } from '../config';
+import { contractSalt, implementationAddress } from '../config';
 import { Eip712Signer } from '../signer';
 import { Chain, NetworkName, ProviderOptions } from '../types';
 import { chainForNetwork, computeAddress } from '../utils';
-import contract_deploy_tx from '../web3_account.json';
+import contract_deploy_tx from '../web3_account_proxy.json';
 
 export class EthAccountProvider extends Provider {
   public readonly starknetAddress: string;
@@ -83,6 +83,7 @@ export class EthAccountProvider extends Provider {
       type: 'DEPLOY',
       contract_address_salt: contractSalt,
       constructor_calldata: [
+        implementationAddress,
         hexToDecimalString(this.address),
         this.chain.chainId.toString(),
       ],
