@@ -135,3 +135,4 @@ node_modules
 .envrc
 erc20_mapping.json
 .DS_Store
+.vscode/
