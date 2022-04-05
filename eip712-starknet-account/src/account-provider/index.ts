@@ -1,82 +1,53 @@
-import { BN } from 'ethereumjs-util';
+import { isValidAddress } from 'ethereumjs-util';
 import {
-  Abi,
+  Account,
   AddTransactionResponse,
   CompressedCompiledContract,
-  Contract,
-  Invocation,
   Provider,
+  Signature,
 } from 'starknet';
-import { hexToDecimalString, toBN } from 'starknet/utils/number';
+import { hexToDecimalString } from 'starknet/utils/number';
 
 import { MetamaskClient } from '../client';
 import { contractSalt, implementationAddress } from '../config';
 import { Eip712Signer } from '../signer';
-import { Chain, NetworkName, ProviderOptions } from '../types';
+import { Chain, NetworkName } from '../types';
 import { chainForNetwork, computeAddress } from '../utils';
 import contract_deploy_tx from '../web3_account_proxy.json';
 
-export class EthAccountProvider extends Provider {
-  public readonly starknetAddress: string;
-  private signer: Eip712Signer;
+export class EthAccount extends Account {
   private readonly chain: Chain;
+  private readonly ethAddress: string;
 
   constructor(
-    optionsOrProvider: Provider | ProviderOptions,
+    provider: Provider,
     client: MetamaskClient,
-    public readonly address: string,
+    ethAddress: string,
     network: NetworkName
   ) {
-    super(optionsOrProvider);
-
-    this.chain = chainForNetwork(network);
-    this.starknetAddress = computeAddress(this.address, this.chain.chainId);
-    this.signer = new Eip712Signer(client, address, this.chain);
-  }
-
-  public override async invokeFunction(
-    invocation: Invocation,
-    _abi?: Abi
-  ): Promise<AddTransactionResponse> {
-    if (invocation.signature) {
-      return super.invokeFunction(invocation, _abi);
+    if (!isValidAddress(ethAddress)) {
+      throw new Error('Provided address is not valid ethereum address.');
     }
 
-    const nonce = await this.fetchNonce();
+    const chain = chainForNetwork(network);
+    const starknetAddress = computeAddress(ethAddress, chain.chainId);
+    const signer = new Eip712Signer(client, ethAddress, chain);
 
-    const signature = await this.signer.signTransaction([invocation], {
-      nonce: nonce,
-      maxFee: 0,
-      walletAddress: '',
-    });
+    super(provider, starknetAddress, signer);
 
-    const contract = new Contract(
-      contract_deploy_tx.contract_definition.abi as Abi,
-      this.starknetAddress,
-      this
-    );
-
-    const callArray = [
-      [
-        invocation.contractAddress,
-        invocation.entrypoint,
-        0,
-        invocation.calldata?.length ?? 0,
-      ],
-    ];
-
-    return contract.invoke('__execute__', [
-      callArray,
-      invocation.calldata,
-      nonce,
-      signature,
-    ]);
+    this.chain = chain;
+    this.ethAddress = ethAddress;
   }
 
-  public isAccountDeployed = async (): Promise<boolean> => {
-    const code = await this.getCode(this.starknetAddress);
-    return !!code.bytecode.length;
-  };
+  signMessage(): Promise<Signature> {
+    throw new Error('signMessage is not supported for EthAccount');
+  }
+
+  /* Account deployment methods */
+
+  public isDeployed() {
+    this.getCode(this.address);
+  }
 
   public deployAccount = async (): Promise<AddTransactionResponse> => {
     return this.fetchEndpoint('add_transaction', undefined, {
@@ -84,24 +55,11 @@ export class EthAccountProvider extends Provider {
       contract_address_salt: contractSalt,
       constructor_calldata: [
         implementationAddress,
-        hexToDecimalString(this.address),
+        hexToDecimalString(this.ethAddress),
         this.chain.chainId.toString(),
       ],
       contract_definition:
         contract_deploy_tx.contract_definition as CompressedCompiledContract,
     });
-  };
-
-  public computeAddress = (ethAddress: string) => {
-    return computeAddress(ethAddress, this.chain.chainId);
-  };
-
-  fetchNonce = async (): Promise<BN> => {
-    const response = await this.callContract({
-      contractAddress: this.starknetAddress,
-      entrypoint: 'get_nonce',
-      calldata: [],
-    });
-    return toBN(response.result[0]);
   };
 }

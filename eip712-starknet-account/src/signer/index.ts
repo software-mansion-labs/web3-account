@@ -13,13 +13,13 @@ import { parseSignature } from '../utils';
 export class Eip712Signer implements SignerInterface {
   constructor(
     private client: MetamaskClient,
-    public readonly address: string,
+    public readonly ethAddress: string,
     private chain: Chain
   ) {}
 
   public async getPubKey(): Promise<string> {
     return (await this.client.request('eth_getEncryptionPublicKey', [
-      this.address,
+      this.ethAddress,
     ])) as string;
   }
 
@@ -61,7 +61,7 @@ export class Eip712Signer implements SignerInterface {
   sign(data: Record<string, unknown>): Promise<string> {
     return this.client.request(
       'eth_signTypedData_v4',
-      this.address,
+      this.ethAddress,
       JSON.stringify(data)
     ) as Promise<string>;
   }

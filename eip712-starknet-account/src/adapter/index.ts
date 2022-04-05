@@ -1,8 +1,8 @@
-
 import detectEthereumProvider from '@metamask/detect-provider';
 import { MetaMaskInpageProvider } from '@metamask/providers';
+import { Provider } from 'starknet';
 
-import { EthAccountProvider } from '../account-provider';
+import { EthAccount } from '../account-provider';
 import { MetamaskClient } from '../client';
 import {
   AccountsChangeHandler,
@@ -18,12 +18,12 @@ export class StarknetAdapter extends MetamaskClient {
     super(metamask);
   }
 
-  requestAccounts = async (): Promise<EthAccountProvider[]> => {
+  requestAccounts = async (): Promise<EthAccount[]> => {
     const accounts = (await this.request('eth_requestAccounts')) as string[];
     return this.mapAccounts(accounts);
   };
 
-  getAccounts = async (): Promise<EthAccountProvider[] | undefined> => {
+  getAccounts = async (): Promise<EthAccount[] | undefined> => {
     const accounts = (await this.request('eth_accounts')) as string[];
     return this.mapAccounts(accounts);
   };
@@ -47,8 +47,8 @@ export class StarknetAdapter extends MetamaskClient {
   private mapAccounts = (accounts: string[]) => {
     return accounts.map(
       (a) =>
-        new EthAccountProvider(
-          this.options.starknet,
+        new EthAccount(
+          new Provider(this.options.starknet),
           this,
           a,
           this.options.network
