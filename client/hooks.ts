@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 
 import { AddTransactionResponse } from "starknet";
-import { EthAccountProvider } from "eip712-starknet-account";
+import { EthAccount } from "eip712-starknet-account";
 import useSWR from "swr";
 
 export type TrackTxStatus = (response: AddTransactionResponse) => void;
 
 export const trackTxInProgress = (
-  lib: EthAccountProvider,
+  lib: EthAccount,
   onEnd: () => void
 ): { trackTx: TrackTxStatus; txInProgress?: string } => {
   const [txInProgress, setTxInProgress] = useState("");
