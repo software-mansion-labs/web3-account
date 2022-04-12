@@ -35,6 +35,11 @@ devserver = "uvicorn adapter.api:app --reload --ssl-keyfile=./key.pem --ssl-cert
 devserver_http = "uvicorn adapter.api:app --reload --log-level=debug"
 test = "pytest adapter"
 test_contracts = {shell = "PYTHONPATH=$PWD pytest -s contracts/*_test.py"}
+[tool.poe.tasks.reload_module] 
+shell = """
+    yarn --cwd eip712-starknet-account build
+    yarn --cwd client upgrade eip712-starknet-account
+"""
 [tool.poe.tasks.devnet]
 shell = """
     trap "exit" INT TERM

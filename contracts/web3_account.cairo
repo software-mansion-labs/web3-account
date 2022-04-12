@@ -15,12 +15,16 @@ from starkware.cairo.common.uint256 import Uint256, uint256_check
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.alloc import alloc
 
-
 from openzeppelin.account.library import (
     Call,
     from_call_array_to_call,
     MultiCall,
     execute_list,
+)
+
+from openzeppelin.upgrades.library import (
+    Proxy_initialized,
+    Proxy_initializer,
 )
 
 from contracts.recover import calc_eth_address
@@ -44,6 +48,10 @@ const MAINNET_CHAIN_ID = 1
 func initialized_account_only{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr 
 }():
+    let (initialized) = Proxy_initialized.read()
+    with_attr error_message("Proxy: contract not initialized"):
+        assert initialized = 1
+    end
     with_attr error_message(
             "Account not initialized."):
         let (state) = account_state.read()
@@ -117,23 +125,29 @@ func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     return ()
 end
 
-func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(eth_address: felt, chain: felt):
+@external
+func initializer{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}(
+    proxy_admin: felt,
+    eth_address: felt,
+    chain: felt
+):
     alloc_locals
-    let (current_state) = account_state.read()
-
-    with_attr error_message(
-            "Account was already initialized."):
-        assert current_state = 0
-    end
 
     with_attr error_message(
             "Invalid address length."):
         assert_lt_felt(eth_address, NONCE_SHIFT)
     end
+
     tempvar range_check_ptr = range_check_ptr
 
     # Make sure proper chain is provided
     chain_id_to_domain_hash(chain)
+
+    Proxy_initializer(proxy_admin)
 
     let state = eth_address + chain * CHAIN_SHIFT
     account_state.write(state)
