@@ -32,17 +32,32 @@ import useSWRImmutable from "swr/immutable";
 const erc20Address = process.env.ERC20_ADDRESS;
 
 const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
+  console.log("nonce", hexToDecimalString(getSelectorFromName("get_nonce")));
+
   const { data: balance, mutate: revalidateBalance } = useSWR(
     lib.address && "balance",
     async () => {
-      const { result } = await lib.callContract({
-        calldata: [hexToDecimalString(lib.address)],
-        contractAddress: erc20Address,
-        entrypoint: "balanceOf",
-      });
-      const [low, high] = result;
-      // We have 18 decimal places
-      return uint256ToBN({ low, high });
+      console.log("LIB ADDRESS:", lib.address);
+      console.log([hexToDecimalString(lib.address)]);
+      console.log(erc20Address);
+      console.log(getSelectorFromName("balanceOf"));
+
+      try {
+        const { result } = await lib.callContract({
+          calldata: [hexToDecimalString(lib.address)],
+          contractAddress: erc20Address,
+          entrypoint: "balanceOf",
+        });
+
+        console.log("result", result);
+
+        const [low, high] = result;
+        // We have 18 decimal places
+        return uint256ToBN({ low, high });
+      } catch (e) {
+        console.error(e.message);
+        throw e;
+      }
     }
   );
 
@@ -104,7 +119,7 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
       .execute({
         contractAddress: erc20Address,
         entrypoint: getSelectorFromName("topup"),
-        calldata: [lib.address],
+        calldata: [hexToDecimalString(lib.address)],
       })
       .then(trackTx)
       .catch(console.error)

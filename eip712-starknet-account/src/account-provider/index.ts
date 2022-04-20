@@ -2,10 +2,15 @@ import { isValidAddress } from 'ethereumjs-util';
 import {
   Account,
   AddTransactionResponse,
+  // Call,
+  // CallContractResponse,
   CompressedCompiledContract,
   Provider,
   Signature,
 } from 'starknet';
+// import { getSelectorFromName } from 'starknet/utils/hash';
+// import { BlockIdentifier } from 'starknet/provider/utils';
+// import { getSelectorFromName } from 'starknet/utils/hash';
 import { hexToDecimalString } from 'starknet/utils/number';
 
 import { MetamaskClient } from '../client';
@@ -51,10 +56,33 @@ export class EthAccount extends Account {
     return !!code.bytecode.length;
   }
 
+  // public async getNonce(): Promise<string> {
+  //   const { result } = await this.fetchEndpoint(
+  //     'call_contract',
+  //     { blockIdentifier: 'pending' },
+  //     {
+  //       contract_address: this.address,
+  //       entry_point_selector: '__default__',
+  //       calldata: [hexToDecimalString(getSelectorFromName('get_nonce'))],
+  //       signature: [],
+  //     }
+  //   );
+
+  //   return toHex(toBN(result[0]));
+  // }
+
   // public async callContract(
   //   { contractAddress, entrypoint, calldata = [] }: Call,
   //   { blockIdentifier = 'pending' }: { blockIdentifier?: BlockIdentifier } = {}
   // ): Promise<CallContractResponse> {
+  //   console.log('calling:', contractAddress);
+  //   console.log('calling:', entrypoint);
+  //   console.log('calling:', calldata);
+
+  //   // return super.callContract(
+  //   //   { contractAddress, entrypoint, calldata },
+  //   //   { blockIdentifier }
+  //   // );
   //   return this.fetchEndpoint(
   //     'call_contract',
   //     { blockIdentifier },
@@ -83,17 +111,25 @@ export class EthAccount extends Account {
   // }
 
   public deployAccount = async (): Promise<AddTransactionResponse> => {
+    console.log('deployment starts', hexToDecimalString(implementationAddress));
+
     const deploymentResult = await this.fetchEndpoint(
       'add_transaction',
       undefined,
       {
         type: 'DEPLOY',
         contract_address_salt: contractSalt,
-        constructor_calldata: [hexToDecimalString(implementationAddress)],
+        constructor_calldata: [
+          hexToDecimalString(implementationAddress),
+          hexToDecimalString(this.ethAddress),
+          this.chain.chainId.toString(),
+        ],
         contract_definition:
           contract_deploy_tx.contract_definition as CompressedCompiledContract,
       }
     );
+
+    console.log('deployment ends');
 
     // await this.callContract({
     //   contractAddress: this.address,

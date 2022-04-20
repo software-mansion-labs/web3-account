@@ -14,7 +14,9 @@ export const trackTxInProgress = (
   useSWR(
     txInProgress && `tx-${txInProgress}`,
     async () => {
+      console.log("tx in progress", txInProgress);
       const result = await lib.getTransactionStatus(txInProgress);
+      console.log("tx result", result);
       console.log(result);
       const { tx_status: status } = result;
       const mapping = {

@@ -37,8 +37,7 @@ test = "pytest adapter"
 test_contracts = {shell = "PYTHONPATH=$PWD pytest -s contracts/*_test.py"}
 [tool.poe.tasks.reload_module] 
 shell = """
-    yarn --cwd eip712-starknet-account build
-    yarn --cwd client upgrade eip712-starknet-account
+    yarn --cwd eip712-starknet-account build && yarn --cwd client upgrade eip712-starknet-account
 """
 [tool.poe.tasks.devnet]
 shell = """
