@@ -1,21 +1,33 @@
 import { isValidAddress } from 'ethereumjs-util';
 import {
+  Abi,
   Account,
   AddTransactionResponse,
+  Call,
   // Call,
   // CallContractResponse,
   CompressedCompiledContract,
+  InvocationsDetails,
+  InvocationsSignerDetails,
   Provider,
   Signature,
 } from 'starknet';
+import { fromCallsToExecuteCalldataWithNonce } from 'starknet/dist/utils/transaction';
+import { getSelectorFromName, transactionVersion } from 'starknet/utils/hash';
 // import { getSelectorFromName } from 'starknet/utils/hash';
 // import { BlockIdentifier } from 'starknet/provider/utils';
 // import { getSelectorFromName } from 'starknet/utils/hash';
-import { hexToDecimalString } from 'starknet/utils/number';
+import {
+  BigNumberish,
+  hexToDecimalString,
+  toBN,
+  toHex,
+} from 'starknet/utils/number';
+import { estimatedFeeToMaxFee } from 'starknet/utils/stark';
 
 import { MetamaskClient } from '../client';
 import { contractSalt, implementationAddress } from '../config';
-import { PersonalSigner } from '../signer';
+import { Eip712Signer } from '../signer';
 import { Chain, NetworkName } from '../types';
 import { chainForNetwork, computeAddress } from '../utils';
 import contract_deploy_tx from '../web3_account_proxy.json';
@@ -37,8 +49,8 @@ export class EthAccount extends Account {
     const chain = chainForNetwork(network);
     const starknetAddress = computeAddress(ethAddress, chain.chainId);
 
-    // const signer = new Eip712Signer(client, ethAddress, chain);
-    const signer = new PersonalSigner(client, ethAddress);
+    const signer = new Eip712Signer(client, ethAddress, chain);
+    // const signer = new PersonalSigner(client, ethAddress);
     super(provider, starknetAddress, signer);
 
     this.chain = chain;
@@ -47,6 +59,47 @@ export class EthAccount extends Account {
 
   signMessage(): Promise<Signature> {
     throw new Error('signMessage is not supported for EthAccount');
+  }
+
+  public async execute(
+    calls: Call | Call[],
+    abis: Abi[] | undefined = undefined,
+    transactionsDetail: InvocationsDetails = {}
+  ): Promise<AddTransactionResponse> {
+    const transactions = Array.isArray(calls) ? calls : [calls];
+    const nonce = toBN(transactionsDetail.nonce ?? (await this.getNonce()));
+    let maxFee: BigNumberish = '0';
+    if (transactionsDetail.maxFee || transactionsDetail.maxFee === 0) {
+      maxFee = transactionsDetail.maxFee;
+    } else {
+      const estimatedFee = (await this.estimateFee(transactions, { nonce }))
+        .amount;
+      maxFee = estimatedFeeToMaxFee(estimatedFee).toString();
+    }
+
+    const signerDetails: InvocationsSignerDetails = {
+      walletAddress: this.address,
+      nonce,
+      maxFee,
+      version: toBN(transactionVersion),
+      chainId: this.chainId,
+    };
+
+    const signature = await this.signer.signTransaction(
+      transactions,
+      signerDetails,
+      abis
+    );
+
+    const calldata = fromCallsToExecuteCalldataWithNonce(transactions, nonce);
+    return this.fetchEndpoint('add_transaction', undefined, {
+      type: 'INVOKE_FUNCTION',
+      contract_address: this.address,
+      entry_point_selector: getSelectorFromName('__execute__'),
+      calldata,
+      signature: signature,
+      max_fee: toHex(toBN(maxFee)),
+    });
   }
 
   /* Account deployment methods */

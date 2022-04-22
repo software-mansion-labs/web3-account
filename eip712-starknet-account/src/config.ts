@@ -1,6 +1,6 @@
 export const contractHash =
-  '0x6a6018cd6080f37e929611e49363c0ece63be2929e32f04936671291ab8a79b';
+  '0x4b433cc70c615844f2bba706d74f3086244c78f59bfd3b6a34cffd3cb3bdc87';
 export const contractSalt = '0x0';
 
 export const implementationAddress =
-  '0x19476bccce3d241d10f8414d6ea35526ce64b606c561baed828a959f34f1d03';
+  '0x176165b6af717aed6e28db89307b5ac88322d603eae813f1c1105099e09cf2f';

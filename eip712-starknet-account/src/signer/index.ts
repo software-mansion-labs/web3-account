@@ -4,7 +4,6 @@ import {
   Signature,
   SignerInterface,
 } from 'starknet';
-import { hashMulticall } from 'starknet/utils/hash';
 
 import { MetamaskClient } from '../client';
 import { getTypedData } from '../typedData';
@@ -68,49 +67,49 @@ export class Eip712Signer implements SignerInterface {
   }
 }
 
-export class PersonalSigner implements SignerInterface {
-  constructor(
-    private client: MetamaskClient,
-    public readonly ethAddress: string
-  ) {}
+// export class PersonalSigner implements SignerInterface {
+//   constructor(
+//     private client: MetamaskClient,
+//     public readonly ethAddress: string
+//   ) {}
 
-  public async getPubKey(): Promise<string> {
-    return (await this.client.request('eth_getEncryptionPublicKey', [
-      this.ethAddress,
-    ])) as string;
-  }
+//   public async getPubKey(): Promise<string> {
+//     return (await this.client.request('eth_getEncryptionPublicKey', [
+//       this.ethAddress,
+//     ])) as string;
+//   }
 
-  public async signMessage(): Promise<Signature> {
-    throw new Error(
-      'signMessage is not supported in ETHSigner, use default Signer.'
-    );
-  }
+//   public async signMessage(): Promise<Signature> {
+//     throw new Error(
+//       'signMessage is not supported in ETHSigner, use default Signer.'
+//     );
+//   }
 
-  public async signTransaction(
-    transactions: Invocation[],
-    transactionsDetail: InvocationsSignerDetails
-  ): Promise<Signature> {
-    if (transactions.length === 0) {
-      throw new Error('No transaction to sign');
-    }
+//   public async signTransaction(
+//     transactions: Invocation[],
+//     transactionsDetail: InvocationsSignerDetails
+//   ): Promise<Signature> {
+//     if (transactions.length === 0) {
+//       throw new Error('No transaction to sign');
+//     }
 
-    const msgHash = hashMulticall(
-      transactionsDetail.walletAddress,
-      transactions,
-      transactionsDetail.nonce.toString(),
-      transactionsDetail.maxFee.toString()
-    );
+//     const msgHash = hashMulticall(
+//       transactionsDetail.walletAddress,
+//       transactions,
+//       transactionsDetail.nonce.toString(),
+//       transactionsDetail.maxFee.toString()
+//     );
 
-    console.log(msgHash);
+//     console.log(msgHash);
 
-    const signature = (await this.client.request(
-      'eth_personalSign',
-      this.ethAddress,
-      msgHash
-    )) as string;
+//     const signature = (await this.client.request(
+//       'eth_personalSign',
+//       this.ethAddress,
+//       msgHash
+//     )) as string;
 
-    console.log(signature);
+//     console.log(signature);
 
-    return parseSignature(signature);
-  }
-}
+//     return parseSignature(signature);
+//   }
+// }

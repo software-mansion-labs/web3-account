@@ -5469,10 +5469,10 @@ standard-version@^9.0.0:
     stringify-package "^1.0.1"
     yargs "^16.0.0"
 
-starknet@^3.7.0:
-  version "3.7.0"
-  resolved "https://registry.yarnpkg.com/starknet/-/starknet-3.7.0.tgz#bcddd1dbb0f63006c867ce9cd27a910c822da9f6"
-  integrity sha512-aT3F9jb3mBh0x/Qf+xLwEJTFUi3FdWMLFKEaVC6HIb7gG7l7ZgSsXCl2ZYu6wCeoDBlopxoQqzNdNM7SpW/9gQ==
+starknet@^3.10.1:
+  version "3.10.1"
+  resolved "https://registry.yarnpkg.com/starknet/-/starknet-3.10.1.tgz#d130c14b8ecd9bf059968f80006198ec23e9a044"
+  integrity sha512-1ZbBhYK77cX6aJz+zcp8U3s01iSN3Y18cHfN55Rn+98+D5LTnSr1cVFJ9Q0MYiThIpKy1XUhYjmbBqzutzyCZg==
   dependencies:
     "@ledgerhq/hw-app-eth" "^6.26.0"
     "@ledgerhq/hw-transport" "^6.24.1"

@@ -32,24 +32,17 @@ import useSWRImmutable from "swr/immutable";
 const erc20Address = process.env.ERC20_ADDRESS;
 
 const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
-  console.log("nonce", hexToDecimalString(getSelectorFromName("get_nonce")));
+  console.log("address", lib.address);
 
   const { data: balance, mutate: revalidateBalance } = useSWR(
     lib.address && "balance",
     async () => {
-      console.log("LIB ADDRESS:", lib.address);
-      console.log([hexToDecimalString(lib.address)]);
-      console.log(erc20Address);
-      console.log(getSelectorFromName("balanceOf"));
-
       try {
         const { result } = await lib.callContract({
           calldata: [hexToDecimalString(lib.address)],
           contractAddress: erc20Address,
           entrypoint: "balanceOf",
         });
-
-        console.log("result", result);
 
         const [low, high] = result;
         // We have 18 decimal places
