@@ -1,7 +1,7 @@
 import {
-  AdapterOptions,
   EthAccount,
   getAdapter,
+  computeStarknetAddress,
 } from "eip712-starknet-account";
 import { CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import {
@@ -66,7 +66,7 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
 
     try {
       const parsedAmount = bnToUint256(toBN(amount, 10));
-      const starknetAddress = lib.computeStarknetAddress(address);
+      const starknetAddress = computeStarknetAddress(address, lib.chainId);
 
       return [
         starknetAddress,
@@ -126,7 +126,7 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
       <Typography>
         Your StarkNet address:{" "}
         <a
-          href={`https://goerli.voyager.online/contract/${lib.starknetAddress}#transactions`}
+          href={`https://goerli.voyager.online/contract/${lib.address}#transactions`}
         >
           {lib.address}
         </a>
@@ -222,9 +222,8 @@ const CreateAccountForm: React.FC<{
   );
 };
 
-const config: AdapterOptions = {
-  starknet: { baseUrl: process.env.NODE_URL },
-  network: "goerli-alpha",
+const config = {
+  baseUrl: process.env.NODE_URL,
 };
 
 const App = () => {

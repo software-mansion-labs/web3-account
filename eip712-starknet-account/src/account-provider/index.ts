@@ -7,7 +7,7 @@ import {
   CompressedCompiledContract,
   InvocationsDetails,
   InvocationsSignerDetails,
-  Provider,
+  ProviderInterface,
   Signature,
 } from 'starknet/src';
 import {
@@ -27,32 +27,29 @@ import { fromCallsToExecuteCalldataWithNonce } from 'starknet/src/utils/transact
 import { MetamaskClient } from '../client';
 import { contractSalt, implementationAddress } from '../config';
 import { Eip712Signer } from '../signer';
-import { Chain, NetworkName } from '../types';
-import { chainForNetwork, computeAddress } from '../utils';
+import { computeStarknetAddress, idForStarknetChain } from '../utils';
 import contract_deploy_tx from '../web3_account_proxy.json';
 
 export class EthAccount extends Account {
-  public readonly chain: Chain;
-  private readonly ethAddress: string;
+  public readonly ethAddress: string;
 
   constructor(
-    provider: Provider,
+    provider: ProviderInterface,
     client: MetamaskClient,
-    ethAddress: string,
-    network: NetworkName
+    ethAddress: string
   ) {
     if (!isValidAddress(ethAddress)) {
       throw new Error('Provided address is not valid ethereum address.');
     }
 
-    const chain = chainForNetwork(network);
-    const starknetAddress = computeAddress(ethAddress, chain.chainId);
-
-    const signer = new Eip712Signer(client, ethAddress, chain);
+    const starknetAddress = computeStarknetAddress(
+      ethAddress,
+      provider.chainId
+    );
+    const signer = new Eip712Signer(client, ethAddress);
 
     super(provider, starknetAddress, signer);
 
-    this.chain = chain;
     this.ethAddress = ethAddress;
   }
 
@@ -127,7 +124,7 @@ export class EthAccount extends Account {
         constructor_calldata: [
           hexToDecimalString(implementationAddress),
           hexToDecimalString(this.ethAddress),
-          this.chain.chainId.toString(),
+          idForStarknetChain(this.chainId).toString(),
         ],
         contract_definition:
           contract_deploy_tx.contract_definition as CompressedCompiledContract,
@@ -135,9 +132,5 @@ export class EthAccount extends Account {
     );
 
     return deploymentResult;
-  }
-
-  public computeStarknetAddress(ethAddress: string) {
-    return computeAddress(ethAddress, this.chain.chainId);
   }
 }

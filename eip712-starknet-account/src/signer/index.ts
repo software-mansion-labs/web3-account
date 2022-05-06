@@ -3,20 +3,18 @@ import {
   InvocationsSignerDetails,
   Signature,
   SignerInterface,
-} from 'starknet';
+} from 'starknet/src';
 import { getSelectorFromName } from 'starknet/src/utils/hash';
-import { toHex } from 'starknet/src/utils/number';
+import { toBN, toHex } from 'starknet/src/utils/number';
 
 import { MetamaskClient } from '../client';
 import { getTypedData } from '../typedData';
-import { Chain } from '../types';
 import { parseSignature } from '../utils';
 
 export class Eip712Signer implements SignerInterface {
   constructor(
     private client: MetamaskClient,
-    public readonly ethAddress: string,
-    private chain: Chain
+    public readonly ethAddress: string
   ) {}
 
   public async getPubKey(): Promise<string> {
@@ -43,7 +41,7 @@ export class Eip712Signer implements SignerInterface {
     if (typeof transactionsDetail.version === 'string') {
       version = transactionsDetail.version;
     } else {
-      version = toHex(transactionsDetail.version);
+      version = toHex(toBN(transactionsDetail.version));
     }
 
     const message = {
@@ -58,7 +56,7 @@ export class Eip712Signer implements SignerInterface {
     };
 
     const data = {
-      ...getTypedData(this.chain.chainName),
+      ...getTypedData(transactionsDetail.chainId),
       message,
     };
 

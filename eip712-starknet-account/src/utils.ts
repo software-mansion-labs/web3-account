@@ -1,9 +1,10 @@
 import { fromRpcSig } from 'ethereumjs-util';
 import { Signature } from 'starknet/src';
+import { StarknetChainId } from 'starknet/src/constants';
 import { computeHashOnElements } from 'starknet/src/utils/hash';
+import { decodeShortString } from 'starknet/src/utils/shortString';
 
 import { contractHash, contractSalt, implementationAddress } from './config';
-import { NetworkName } from './types';
 
 const RECOVERY_OFFSET = 27;
 
@@ -21,25 +22,31 @@ export const parseSignature = (signature: string): Signature => {
   return [vStr, rLow, rHigh, sLow, sHigh];
 };
 
-export const computeAddress = (ethAddress: string, chainId: number) =>
+export const idForStarknetChain = (chain: StarknetChainId) => {
+  switch (chain) {
+    case StarknetChainId.MAINNET:
+      return 1;
+    case StarknetChainId.TESTNET:
+      return 5;
+  }
+};
+
+export const nameForStarknetChain = (chain: StarknetChainId) => {
+  return decodeShortString(chain);
+};
+
+export const computeStarknetAddress = (
+  ethAddress: string,
+  chain: StarknetChainId
+) =>
   computeHashOnElements([
     '0x' + new Buffer('STARKNET_CONTRACT_ADDRESS', 'ascii').toString('hex'),
     0,
     contractSalt,
     contractHash,
-    computeHashOnElements([implementationAddress, ethAddress, chainId]),
+    computeHashOnElements([
+      implementationAddress,
+      ethAddress,
+      idForStarknetChain(chain),
+    ]),
   ]);
-
-export const chainForNetwork = (network: NetworkName) => {
-  if (network === 'mainnet-alpha') {
-    return {
-      chainId: 1,
-      chainName: 'SN_MAINNET',
-    };
-  } else {
-    return {
-      chainId: 5,
-      chainName: 'SN_GOERLI',
-    };
-  }
-};
