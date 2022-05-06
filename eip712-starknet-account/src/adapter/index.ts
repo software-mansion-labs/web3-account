@@ -2,7 +2,7 @@ import detectEthereumProvider from '@metamask/detect-provider';
 import { MetaMaskInpageProvider } from '@metamask/providers';
 import { Provider, ProviderInterface } from 'starknet/src';
 
-import { EthAccount } from '../account-provider';
+import { EthAccount } from '../account';
 import { MetamaskClient } from '../client';
 import {
   AccountsChangeHandler,

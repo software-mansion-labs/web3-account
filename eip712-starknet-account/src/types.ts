@@ -1,6 +1,6 @@
 import { StarknetChainId } from 'starknet/src/constants';
 
-import { EthAccount } from './account-provider';
+import { EthAccount } from './account';
 
 export type NetworkName = 'mainnet-alpha' | 'goerli-alpha';
 
