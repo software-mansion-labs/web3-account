@@ -24,7 +24,6 @@ import Grid from "@mui/material/Grid";
 import LoadingButton from "@mui/lab/LoadingButton";
 import ReactDOM from "react-dom";
 import Skeleton from "@mui/material/Skeleton";
-import { getSelectorFromName } from "starknet/utils/hash";
 import { trackTxInProgress } from "./hooks";
 import useSWR from "swr";
 import useSWRImmutable from "swr/immutable";
@@ -32,8 +31,6 @@ import useSWRImmutable from "swr/immutable";
 const erc20Address = process.env.ERC20_ADDRESS;
 
 const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
-  console.log("address", lib.address);
-
   const { data: balance, mutate: revalidateBalance } = useSWR(
     lib.address && "balance",
     async () => {
@@ -69,7 +66,8 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
 
     try {
       const parsedAmount = bnToUint256(toBN(amount, 10));
-      const starknetAddress = lib.address;
+      const starknetAddress = lib.computeStarknetAddress(address);
+
       return [
         starknetAddress,
         parsedAmount.low.toString(16),
@@ -93,7 +91,7 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
     lib
       .execute({
         contractAddress: erc20Address,
-        entrypoint: getSelectorFromName("transfer"),
+        entrypoint: "transfer",
         calldata,
       })
       .then(trackTx)
@@ -111,7 +109,7 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
     lib
       .execute({
         contractAddress: erc20Address,
-        entrypoint: getSelectorFromName("topup"),
+        entrypoint: "topup",
         calldata: [hexToDecimalString(lib.address)],
       })
       .then(trackTx)

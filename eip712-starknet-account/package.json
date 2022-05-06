@@ -42,11 +42,12 @@
     "@metamask/detect-provider": "^1.2.0",
     "@metamask/providers": "^8.1.1",
     "ethereumjs-util": "^7.1.4",
-    "starknet": "^3.10.1"
+    "starknet": "https://github.com/0xs34n/starknet.js#bugfix/handle-bignumber-fetch-response"
   },
   "devDependencies": {
     "@ava/typescript": "^1.1.1",
     "@istanbuljs/nyc-config-typescript": "^1.0.1",
+    "@types/bn.js": "^5.1.0",
     "@types/elliptic": "^6.4.14",
     "@typescript-eslint/eslint-plugin": "^4.0.1",
     "@typescript-eslint/parser": "^4.0.1",

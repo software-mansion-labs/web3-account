@@ -4,26 +4,25 @@ import {
   Account,
   AddTransactionResponse,
   Call,
-  // Call,
-  // CallContractResponse,
   CompressedCompiledContract,
   InvocationsDetails,
   InvocationsSignerDetails,
   Provider,
   Signature,
-} from 'starknet';
-import { fromCallsToExecuteCalldataWithNonce } from 'starknet/dist/utils/transaction';
-import { getSelectorFromName, transactionVersion } from 'starknet/utils/hash';
-// import { getSelectorFromName } from 'starknet/utils/hash';
-// import { BlockIdentifier } from 'starknet/provider/utils';
-// import { getSelectorFromName } from 'starknet/utils/hash';
+} from 'starknet/src';
+import {
+  getSelectorFromName,
+  transactionVersion,
+} from 'starknet/src/utils/hash';
 import {
   BigNumberish,
+  bigNumberishArrayToDecimalStringArray,
   hexToDecimalString,
   toBN,
   toHex,
-} from 'starknet/utils/number';
-import { estimatedFeeToMaxFee } from 'starknet/utils/stark';
+} from 'starknet/src/utils/number';
+import { estimatedFeeToMaxFee } from 'starknet/src/utils/stark';
+import { fromCallsToExecuteCalldataWithNonce } from 'starknet/src/utils/transaction';
 
 import { MetamaskClient } from '../client';
 import { contractSalt, implementationAddress } from '../config';
@@ -33,7 +32,7 @@ import { chainForNetwork, computeAddress } from '../utils';
 import contract_deploy_tx from '../web3_account_proxy.json';
 
 export class EthAccount extends Account {
-  private readonly chain: Chain;
+  public readonly chain: Chain;
   private readonly ethAddress: string;
 
   constructor(
@@ -50,7 +49,7 @@ export class EthAccount extends Account {
     const starknetAddress = computeAddress(ethAddress, chain.chainId);
 
     const signer = new Eip712Signer(client, ethAddress, chain);
-    // const signer = new PersonalSigner(client, ethAddress);
+
     super(provider, starknetAddress, signer);
 
     this.chain = chain;
@@ -68,21 +67,28 @@ export class EthAccount extends Account {
   ): Promise<AddTransactionResponse> {
     const transactions = Array.isArray(calls) ? calls : [calls];
     const nonce = toBN(transactionsDetail.nonce ?? (await this.getNonce()));
-    let maxFee: BigNumberish = '0';
+    const maxFee: BigNumberish = '0';
+
+    // maxFee, not maxFee_, is used in add_transaction, because devnet doesn't support calling invoking functions
+    // with non-zero maxFee
+    let maxFee_: BigNumberish = '0';
     if (transactionsDetail.maxFee || transactionsDetail.maxFee === 0) {
-      maxFee = transactionsDetail.maxFee;
+      maxFee_ = transactionsDetail.maxFee;
     } else {
       const estimatedFee = (await this.estimateFee(transactions, { nonce }))
         .amount;
-      maxFee = estimatedFeeToMaxFee(estimatedFee).toString();
+
+      maxFee_ = estimatedFeeToMaxFee(estimatedFee).toString();
     }
+
+    console.log(maxFee_);
 
     const signerDetails: InvocationsSignerDetails = {
       walletAddress: this.address,
       nonce,
       maxFee,
       version: toBN(transactionVersion),
-      chainId: this.chainId,
+      chainId: this.chainId, // It's actually not used by our signer.
     };
 
     const signature = await this.signer.signTransaction(
@@ -97,7 +103,7 @@ export class EthAccount extends Account {
       contract_address: this.address,
       entry_point_selector: getSelectorFromName('__execute__'),
       calldata,
-      signature: signature,
+      signature: bigNumberishArrayToDecimalStringArray(signature),
       max_fee: toHex(toBN(maxFee)),
     });
   }
@@ -109,61 +115,7 @@ export class EthAccount extends Account {
     return !!code.bytecode.length;
   }
 
-  // public async getNonce(): Promise<string> {
-  //   const { result } = await this.fetchEndpoint(
-  //     'call_contract',
-  //     { blockIdentifier: 'pending' },
-  //     {
-  //       contract_address: this.address,
-  //       entry_point_selector: '__default__',
-  //       calldata: [hexToDecimalString(getSelectorFromName('get_nonce'))],
-  //       signature: [],
-  //     }
-  //   );
-
-  //   return toHex(toBN(result[0]));
-  // }
-
-  // public async callContract(
-  //   { contractAddress, entrypoint, calldata = [] }: Call,
-  //   { blockIdentifier = 'pending' }: { blockIdentifier?: BlockIdentifier } = {}
-  // ): Promise<CallContractResponse> {
-  //   console.log('calling:', contractAddress);
-  //   console.log('calling:', entrypoint);
-  //   console.log('calling:', calldata);
-
-  //   // return super.callContract(
-  //   //   { contractAddress, entrypoint, calldata },
-  //   //   { blockIdentifier }
-  //   // );
-  //   return this.fetchEndpoint(
-  //     'call_contract',
-  //     { blockIdentifier },
-  //     {
-  //       signature: [],
-  //       contract_address: contractAddress,
-  //       entry_point_selector: getSelectorFromName(entrypoint),
-  //       calldata: [getSelectorFromName(entrypoint), ...calldata],
-  //     }
-  //   );
-  // }
-
-  // public async getNonce(): Promise<string> {
-  //   try {
-  //     const { result } = await this.callContract({
-  //       contractAddress: this.address,
-  //       entrypoint: getSelectorFromName('get_nonce'),
-  //     });
-
-  //     return toHex(toBN(result[0]));
-  //   } catch (e) {
-  //     console.log('Error while getting nonce');
-  //     console.error(e);
-  //     throw e;
-  //   }
-  // }
-
-  public deployAccount = async (): Promise<AddTransactionResponse> => {
+  public async deployAccount(): Promise<AddTransactionResponse> {
     console.log('deployment starts', hexToDecimalString(implementationAddress));
 
     const deploymentResult = await this.fetchEndpoint(
@@ -182,20 +134,10 @@ export class EthAccount extends Account {
       }
     );
 
-    console.log('deployment ends');
-
-    // await this.callContract({
-    //   contractAddress: this.address,
-    //   entrypoint: 'initializer',
-    //   calldata: [
-    //     hexToDecimalString(this.address),
-    //     hexToDecimalString(this.ethAddress),
-    //     this.chain.chainId.toString(),
-    //   ],
-    // });
-    console.log(this.chain);
-    console.log(this.ethAddress);
-
     return deploymentResult;
-  };
+  }
+
+  public computeStarknetAddress(ethAddress: string) {
+    return computeAddress(ethAddress, this.chain.chainId);
+  }
 }
