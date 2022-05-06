@@ -85,7 +85,7 @@ export class EthAccount extends Account {
       nonce,
       maxFee,
       version: toBN(transactionVersion),
-      chainId: this.chainId, // It's actually not used by our signer.
+      chainId: this.chainId,
     };
 
     const signature = await this.signer.signTransaction(
