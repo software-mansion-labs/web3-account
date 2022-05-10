@@ -27,7 +27,7 @@ import { fromCallsToExecuteCalldataWithNonce } from 'starknet/src/utils/transact
 import { MetamaskClient } from '../client';
 import { contractSalt, implementationAddress } from '../config';
 import { Eip712Signer } from '../signer';
-import { computeStarknetAddress, idForStarknetChain } from '../utils';
+import { computeStarknetAddress } from '../utils';
 import contract_deploy_tx from '../web3_account_proxy.json';
 
 export class EthAccount extends Account {
@@ -66,19 +66,17 @@ export class EthAccount extends Account {
     const nonce = toBN(transactionsDetail.nonce ?? (await this.getNonce()));
     const maxFee: BigNumberish = '0';
 
-    // maxFee, not maxFee_, is used in add_transaction, because devnet doesn't support calling invoking functions
-    // with non-zero maxFee
-    let maxFee_: BigNumberish = '0';
+    // TODO: Update fetchEndpoint call to use estimated fee, when devnet supports it
+
+    // let maxFee_: BigNumberish = '0';
     if (transactionsDetail.maxFee || transactionsDetail.maxFee === 0) {
-      maxFee_ = transactionsDetail.maxFee;
+      // maxFee_ = transactionsDetail.maxFee;
     } else {
       const estimatedFee = (await this.estimateFee(transactions, { nonce }))
         .amount;
 
-      maxFee_ = estimatedFeeToMaxFee(estimatedFee).toString();
+      estimatedFeeToMaxFee(estimatedFee).toString();
     }
-
-    console.log(maxFee_);
 
     const signerDetails: InvocationsSignerDetails = {
       walletAddress: this.address,
@@ -113,8 +111,6 @@ export class EthAccount extends Account {
   }
 
   public async deployAccount(): Promise<AddTransactionResponse> {
-    console.log('deployment starts', hexToDecimalString(implementationAddress));
-
     const deploymentResult = await this.fetchEndpoint(
       'add_transaction',
       undefined,
@@ -124,7 +120,7 @@ export class EthAccount extends Account {
         constructor_calldata: [
           hexToDecimalString(implementationAddress),
           hexToDecimalString(this.ethAddress),
-          idForStarknetChain(this.chainId).toString(),
+          hexToDecimalString(this.chainId),
         ],
         contract_definition:
           contract_deploy_tx.contract_definition as CompressedCompiledContract,

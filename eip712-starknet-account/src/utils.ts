@@ -22,15 +22,6 @@ export const parseSignature = (signature: string): Signature => {
   return [vStr, rLow, rHigh, sLow, sHigh];
 };
 
-export const idForStarknetChain = (chain: StarknetChainId) => {
-  switch (chain) {
-    case StarknetChainId.MAINNET:
-      return 1;
-    case StarknetChainId.TESTNET:
-      return 5;
-  }
-};
-
 export const nameForStarknetChain = (chain: StarknetChainId) => {
   return decodeShortString(chain);
 };
@@ -44,9 +35,5 @@ export const computeStarknetAddress = (
     0,
     contractSalt,
     contractHash,
-    computeHashOnElements([
-      implementationAddress,
-      ethAddress,
-      idForStarknetChain(chain),
-    ]),
+    computeHashOnElements([implementationAddress, ethAddress, chain]),
   ]);
