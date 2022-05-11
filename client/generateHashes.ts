@@ -3,9 +3,13 @@ import {
   TypedDataUtils,
   signTypedData,
 } from "@metamask/eth-sig-util";
-import { getTypedData, parseSignature } from "eip712-starknet-account";
+import {
+  getTypedData,
+  parseSignature,
+  StarknetChainId,
+} from "eip712-starknet-account";
 
-const typedData = getTypedData("SN_GOERLI");
+const typedData = getTypedData(StarknetChainId.TESTNET);
 
 console.log(
   "DOMAIN HASH:",

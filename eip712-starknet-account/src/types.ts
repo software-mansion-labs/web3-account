@@ -1,11 +1,8 @@
-import { EthAccountProvider } from './account-provider';
+import { StarknetChainId } from 'starknet/constants';
+
+import { EthAccount } from './account';
 
 export type NetworkName = 'mainnet-alpha' | 'goerli-alpha';
-
-export type Chain = {
-  chainId: number;
-  chainName: string;
-};
 
 export type ProviderOptions =
   | {
@@ -15,11 +12,8 @@ export type ProviderOptions =
       baseUrl: string;
     };
 
-export type AdapterOptions = {
-  starknet: ProviderOptions;
-  network: NetworkName;
-};
-
-export type AccountsChangeHandler = (accounts: EthAccountProvider[]) => void;
+export type AccountsChangeHandler = (accounts: EthAccount[]) => void;
 
 export type HandlerRemover = () => void;
+
+export { StarknetChainId };

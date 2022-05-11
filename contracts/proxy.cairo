@@ -1,32 +1,18 @@
 
 %lang starknet
 
-from starkware.starknet.common.syscalls import delegate_call, get_tx_info
+from starkware.starknet.common.syscalls import delegate_call, get_tx_info, get_contract_address
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from openzeppelin.upgrades.library import (
-    Proxy_implementation_address,
     Proxy_set_implementation,
-    Proxy_only_admin,
-    Proxy_initializer
+    Proxy_implementation_address,
 )
 
 @contract_interface
 namespace IAccountContract:
-    func initialize(eth_address: felt, chain: felt):
+    func initializer(proxy_admin: felt, eth_address: felt, chain: felt):
     end
 end
-
-#
-# State
-#
-
-@storage_var
-func account_state() -> (res: felt):
-end
-
-#
-# Constructor
-#
 
 @constructor
 func constructor{
@@ -34,13 +20,13 @@ func constructor{
     pedersen_ptr: HashBuiltin*,
     range_check_ptr
 }(implementation_address: felt, eth_address: felt, chain: felt):
-    let (tx_info) = get_tx_info()
-
-    Proxy_initializer(proxy_admin=tx_info.account_contract_address)
     Proxy_set_implementation(implementation_address)
 
-    IAccountContract.initialize(
+    let (contract_address) = get_contract_address()
+
+    IAccountContract.delegate_initializer(
         contract_address=implementation_address,
+        proxy_admin=contract_address,
         eth_address=eth_address,
         chain=chain
     )

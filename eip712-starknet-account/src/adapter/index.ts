@@ -1,29 +1,29 @@
-
 import detectEthereumProvider from '@metamask/detect-provider';
 import { MetaMaskInpageProvider } from '@metamask/providers';
+import { Provider, ProviderInterface } from 'starknet';
 
-import { EthAccountProvider } from '../account-provider';
+import { EthAccount } from '../account';
 import { MetamaskClient } from '../client';
 import {
   AccountsChangeHandler,
-  AdapterOptions,
   HandlerRemover,
+  ProviderOptions,
 } from '../types';
 
 export class StarknetAdapter extends MetamaskClient {
   constructor(
-    private readonly options: AdapterOptions,
+    private readonly optionsOrProvider: ProviderInterface | ProviderOptions,
     metamask: MetaMaskInpageProvider
   ) {
     super(metamask);
   }
 
-  requestAccounts = async (): Promise<EthAccountProvider[]> => {
+  requestAccounts = async (): Promise<EthAccount[]> => {
     const accounts = (await this.request('eth_requestAccounts')) as string[];
     return this.mapAccounts(accounts);
   };
 
-  getAccounts = async (): Promise<EthAccountProvider[] | undefined> => {
+  getAccounts = async (): Promise<EthAccount[] | undefined> => {
     const accounts = (await this.request('eth_accounts')) as string[];
     return this.mapAccounts(accounts);
   };
@@ -45,34 +45,33 @@ export class StarknetAdapter extends MetamaskClient {
   };
 
   private mapAccounts = (accounts: string[]) => {
-    return accounts.map(
-      (a) =>
-        new EthAccountProvider(
-          this.options.starknet,
-          this,
-          a,
-          this.options.network
-        )
-    );
+    return accounts.map((a) => {
+      const provider: ProviderInterface =
+        this.optionsOrProvider instanceof ProviderInterface
+          ? this.optionsOrProvider
+          : new Provider(this.optionsOrProvider);
+
+      return new EthAccount(provider, this, a);
+    });
   };
 }
 
 export const getAdapter = async (
-  options: AdapterOptions
+  optionsOrProvider: ProviderOptions | ProviderInterface
 ): Promise<StarknetAdapter | undefined> => {
-  const provider = (await detectEthereumProvider()) as
+  const ethereumProvider = (await detectEthereumProvider()) as
     | MetaMaskInpageProvider
     | undefined;
 
-  if (!provider) {
+  if (!ethereumProvider) {
     alert('No metamask found!');
     return;
   }
 
-  if (provider !== window.ethereum) {
+  if (ethereumProvider !== window.ethereum) {
     alert('Multiple wallets installed');
     return;
   }
 
-  return new StarknetAdapter(options, provider);
+  return new StarknetAdapter(optionsOrProvider, ethereumProvider);
 };

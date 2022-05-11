@@ -15,12 +15,16 @@ from starkware.cairo.common.uint256 import Uint256, uint256_check
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.alloc import alloc
 
-
 from openzeppelin.account.library import (
     Call,
     from_call_array_to_call,
     MultiCall,
     execute_list,
+)
+
+from openzeppelin.upgrades.library import (
+    Proxy_initialized,
+    Proxy_initializer,
 )
 
 from contracts.recover import calc_eth_address
@@ -38,10 +42,13 @@ const NONCE_MASK = 2**240 - 1 - ETH_ADDRESS_MASK
 const CHAIN_SHIFT = 2 ** 240
 const CHAIN_MASK = 2**250 - 1 - NONCE_MASK - ETH_ADDRESS_MASK
 
-const TESTNET_CHAIN_ID = 5
-const MAINNET_CHAIN_ID = 1
+const TESTNET_CHAIN_ID = 0x534e5f474f45524c49
+const MAINNET_CHAIN_ID = 0x534e5f4d41494e
 
-func initialized_account_only{
+const COMPRESSED_MAINNET_CHAIN_ID = 0
+const COMPRESSED_TESTNET_CHAIN_ID = 1
+
+func assert_initialized{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr 
 }():
     with_attr error_message(
@@ -52,17 +59,17 @@ func initialized_account_only{
     return ()
 end
 
-func chain_id_to_domain_hash(chain_id: felt) -> (domain_hash: Uint256):
-    if chain_id == TESTNET_CHAIN_ID:
+func compressed_chain_id_to_domain_hash(chain_id: felt) -> (domain_hash: Uint256):
+    if chain_id == COMPRESSED_TESTNET_CHAIN_ID:
         # low, high
         return (Uint256(0x1315bc26e0a4f976bb3f649475ef6193, 0xdb8ed783e9bc3dbcdb61cf4544b464e2))
     end
 
-    if chain_id == MAINNET_CHAIN_ID:
+    if chain_id == COMPRESSED_MAINNET_CHAIN_ID:
         return (Uint256(0x48b4069472bb322fbeef1215f6aac583, 0xacc9506a403c36e093633648560ab569))
     end
 
-    with_attr error_message("Invalid chain id {chain_id}."):
+    with_attr error_message("Invalid compressed chain id {chain_id}."):
         assert 1 = 0
     end
 
@@ -70,21 +77,38 @@ func chain_id_to_domain_hash(chain_id: felt) -> (domain_hash: Uint256):
     return (Uint256(0,0))
 end
 
+func compress_chain_id(chain_id: felt) -> (compressed_chain_id: felt):
+    if chain_id == MAINNET_CHAIN_ID:
+        return (COMPRESSED_MAINNET_CHAIN_ID)
+    end
+
+    if chain_id == TESTNET_CHAIN_ID:
+        return (COMPRESSED_TESTNET_CHAIN_ID)
+    end
+
+    with_attr error_message("Invalid chain id {chain_id}."):
+        assert 1 = 0
+    end
+
+    # Never reached
+    return (0)
+end
+
 @view
 func get_domain_hash{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (domain_hash: Uint256):
     alloc_locals
-    initialized_account_only()
+    assert_initialized()
 
     let (state) = account_state.read()
     let (chain) = bitwise_and(state, CHAIN_MASK)
     let chain = chain / CHAIN_SHIFT
-    let (domain_hash) = chain_id_to_domain_hash(chain)
+    let (domain_hash) = compressed_chain_id_to_domain_hash(chain)
     return (domain_hash)
 end
 
 @view
 func get_eth_address{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (address: felt):
-    initialized_account_only()
+    assert_initialized()
 
     let (state) = account_state.read()
     let (address) = bitwise_and(state, ETH_ADDRESS_MASK)
@@ -93,7 +117,7 @@ end
 
 @view
 func get_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (nonce : felt):
-    initialized_account_only()
+    assert_initialized()
 
     let (state) = account_state.read()
     let (nonce) = bitwise_and(state, NONCE_MASK)
@@ -102,7 +126,7 @@ func get_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
 end
 
 func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> ():
-    initialized_account_only()
+    assert_initialized()
 
     let (state) = account_state.read()
     let new_state = state + NONCE_SHIFT
@@ -117,25 +141,31 @@ func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     return ()
 end
 
-func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(eth_address: felt, chain: felt):
+@external
+func initializer{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}(
+    proxy_admin: felt,
+    eth_address: felt,
+    chain: felt
+):
     alloc_locals
-    let (current_state) = account_state.read()
-
-    with_attr error_message(
-            "Account was already initialized."):
-        assert current_state = 0
-    end
 
     with_attr error_message(
             "Invalid address length."):
         assert_lt_felt(eth_address, NONCE_SHIFT)
     end
+
     tempvar range_check_ptr = range_check_ptr
 
     # Make sure proper chain is provided
-    chain_id_to_domain_hash(chain)
+    let (compressed_chain_id) = compress_chain_id(chain)
 
-    let state = eth_address + chain * CHAIN_SHIFT
+    Proxy_initializer(proxy_admin)
+
+    let state = eth_address + compressed_chain_id * CHAIN_SHIFT
     account_state.write(state)
     return ()
 end

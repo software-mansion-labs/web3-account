@@ -1,7 +1,7 @@
 import {
-  AdapterOptions,
-  EthAccountProvider,
+  EthAccount,
   getAdapter,
+  computeStarknetAddress,
 } from "eip712-starknet-account";
 import { CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import {
@@ -24,25 +24,30 @@ import Grid from "@mui/material/Grid";
 import LoadingButton from "@mui/lab/LoadingButton";
 import ReactDOM from "react-dom";
 import Skeleton from "@mui/material/Skeleton";
-import { getSelectorFromName } from "starknet/utils/hash";
 import { trackTxInProgress } from "./hooks";
 import useSWR from "swr";
 import useSWRImmutable from "swr/immutable";
 
 const erc20Address = process.env.ERC20_ADDRESS;
 
-const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
+const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
   const { data: balance, mutate: revalidateBalance } = useSWR(
     lib.address && "balance",
     async () => {
-      const { result } = await lib.callContract({
-        calldata: [hexToDecimalString(lib.starknetAddress)],
-        contractAddress: erc20Address,
-        entrypoint: "balanceOf",
-      });
-      const [low, high] = result;
-      // We have 18 decimal places
-      return uint256ToBN({ low, high });
+      try {
+        const { result } = await lib.callContract({
+          calldata: [hexToDecimalString(lib.address)],
+          contractAddress: erc20Address,
+          entrypoint: "balanceOf",
+        });
+
+        const [low, high] = result;
+        // We have 18 decimal places
+        return uint256ToBN({ low, high });
+      } catch (e) {
+        console.error(e.message);
+        throw e;
+      }
     }
   );
 
@@ -61,7 +66,8 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
 
     try {
       const parsedAmount = bnToUint256(toBN(amount, 10));
-      const starknetAddress = lib.computeAddress(address);
+      const starknetAddress = computeStarknetAddress(address, lib.chainId);
+
       return [
         starknetAddress,
         parsedAmount.low.toString(16),
@@ -83,9 +89,9 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
     setLoading(true);
 
     lib
-      .invokeFunction({
+      .execute({
         contractAddress: erc20Address,
-        entrypoint: getSelectorFromName("transfer"),
+        entrypoint: "transfer",
         calldata,
       })
       .then(trackTx)
@@ -99,11 +105,12 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
     }
 
     setLoading(true);
+
     lib
-      .invokeFunction({
+      .execute({
         contractAddress: erc20Address,
-        entrypoint: getSelectorFromName("topup"),
-        calldata: [lib.starknetAddress],
+        entrypoint: "topup",
+        calldata: [hexToDecimalString(lib.address)],
       })
       .then(trackTx)
       .catch(console.error)
@@ -119,9 +126,9 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
       <Typography>
         Your StarkNet address:{" "}
         <a
-          href={`https://goerli.voyager.online/contract/${lib.starknetAddress}#transactions`}
+          href={`https://goerli.voyager.online/contract/${lib.address}#transactions`}
         >
-          {lib.starknetAddress}
+          {lib.address}
         </a>
       </Typography>
       <Typography>
@@ -173,7 +180,7 @@ const TokenWallet: React.FC<{ lib: EthAccountProvider }> = ({ lib }) => {
 };
 
 const CreateAccountForm: React.FC<{
-  lib: EthAccountProvider;
+  lib: EthAccount;
   onCreate: () => void;
 }> = ({ lib, onCreate }) => {
   const [loading, setLoading] = useState(false);
@@ -215,14 +222,12 @@ const CreateAccountForm: React.FC<{
   );
 };
 
-const config: AdapterOptions = {
-  starknet: { baseUrl: process.env.NODE_URL },
-  network: "goerli-alpha",
+const config = {
+  baseUrl: process.env.NODE_URL,
 };
 
 const App = () => {
-  const [requestedAccount, setRequestedAccount] =
-    useState<EthAccountProvider>();
+  const [requestedAccount, setRequestedAccount] = useState<EthAccount>();
   const { data } = useSWRImmutable("adapter", async () => {
     const adapter = await getAdapter(config);
     const accounts = await adapter.getAccounts();
@@ -239,7 +244,7 @@ const App = () => {
       return;
     }
 
-    lib.isAccountDeployed().then(setIsDeployed).catch(console.error);
+    lib.isDeployed().then(setIsDeployed).catch(console.error);
   }, [lib]);
 
   const requestAccount = useCallback(async () => {

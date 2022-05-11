@@ -4,22 +4,22 @@ import {
   Signature,
   SignerInterface,
 } from 'starknet';
+import { getSelectorFromName } from 'starknet/utils/hash';
+import { toBN, toHex } from 'starknet/utils/number';
 
 import { MetamaskClient } from '../client';
 import { getTypedData } from '../typedData';
-import { Chain } from '../types';
 import { parseSignature } from '../utils';
 
 export class Eip712Signer implements SignerInterface {
   constructor(
     private client: MetamaskClient,
-    public readonly address: string,
-    private chain: Chain
+    public readonly ethAddress: string
   ) {}
 
   public async getPubKey(): Promise<string> {
     return (await this.client.request('eth_getEncryptionPublicKey', [
-      this.address,
+      this.ethAddress,
     ])) as string;
   }
 
@@ -37,19 +37,26 @@ export class Eip712Signer implements SignerInterface {
       throw new Error('No transaction to sign');
     }
 
+    let version: string;
+    if (typeof transactionsDetail.version === 'string') {
+      version = transactionsDetail.version;
+    } else {
+      version = toHex(toBN(transactionsDetail.version));
+    }
+
     const message = {
       nonce: transactionsDetail.nonce,
       maxFee: transactionsDetail.maxFee,
-      version: 0,
+      version: version,
       calls: transactions.map((transaction) => ({
         address: transaction.contractAddress,
-        selector: transaction.entrypoint,
+        selector: getSelectorFromName(transaction.entrypoint),
         calldata: transaction.calldata,
       })),
     };
 
     const data = {
-      ...getTypedData(this.chain.chainName),
+      ...getTypedData(transactionsDetail.chainId),
       message,
     };
 
@@ -61,7 +68,7 @@ export class Eip712Signer implements SignerInterface {
   sign(data: Record<string, unknown>): Promise<string> {
     return this.client.request(
       'eth_signTypedData_v4',
-      this.address,
+      this.ethAddress,
       JSON.stringify(data)
     ) as Promise<string>;
   }

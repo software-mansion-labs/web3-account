@@ -1,6 +1,10 @@
-export const getTypedData = (chainName: string) => ({
+import { StarknetChainId } from 'starknet/constants';
+
+import { nameForStarknetChain } from './utils';
+
+export const getTypedData = (chain: StarknetChainId) => ({
   domain: {
-    name: chainName,
+    name: nameForStarknetChain(chain),
     version: '1',
   },
 
