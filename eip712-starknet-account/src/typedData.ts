@@ -1,4 +1,4 @@
-import { StarknetChainId } from 'starknet/src/constants';
+import { StarknetChainId } from 'starknet/constants';
 
 import { nameForStarknetChain } from './utils';
 

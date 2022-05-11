@@ -1,8 +1,8 @@
 import { fromRpcSig } from 'ethereumjs-util';
-import { Signature } from 'starknet/src';
-import { StarknetChainId } from 'starknet/src/constants';
-import { computeHashOnElements } from 'starknet/src/utils/hash';
-import { decodeShortString } from 'starknet/src/utils/shortString';
+import { Signature } from 'starknet';
+import { StarknetChainId } from 'starknet/constants';
+import { computeHashOnElements } from 'starknet/utils/hash';
+import { decodeShortString } from 'starknet/utils/shortString';
 
 import { contractHash, contractSalt, implementationAddress } from './config';
 

@@ -3,9 +3,9 @@ import {
   InvocationsSignerDetails,
   Signature,
   SignerInterface,
-} from 'starknet/src';
-import { getSelectorFromName } from 'starknet/src/utils/hash';
-import { toBN, toHex } from 'starknet/src/utils/number';
+} from 'starknet';
+import { getSelectorFromName } from 'starknet/utils/hash';
+import { toBN, toHex } from 'starknet/utils/number';
 
 import { MetamaskClient } from '../client';
 import { getTypedData } from '../typedData';

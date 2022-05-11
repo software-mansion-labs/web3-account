@@ -683,6 +683,18 @@
     minimatch "^3.0.4"
     strip-json-comments "^3.1.1"
 
+"@ethersproject/bytes@^5.6.1":
+  version "5.6.1"
+  resolved "https://registry.yarnpkg.com/@ethersproject/bytes/-/bytes-5.6.1.tgz#24f916e411f82a8a60412344bf4a813b917eefe7"
+  integrity sha512-NwQt7cKn5+ZE4uDn+X5RAXLp46E1chXoaMmrxAyA0rblpxz8t58lVkrHXoRIn0lz1joQElQ8410GqhTqMOwc6g==
+  dependencies:
+    "@ethersproject/logger" "^5.6.0"
+
+"@ethersproject/logger@^5.6.0":
+  version "5.6.0"
+  resolved "https://registry.yarnpkg.com/@ethersproject/logger/-/logger-5.6.0.tgz#d7db1bfcc22fd2e4ab574cba0bb6ad779a9a3e7a"
+  integrity sha512-BiBWllUROH9w+P21RzoxJKzqoqpkyM1pRnEKG69bulE9TSQD8SAIvTQqIMZmmCO8pUNkgLP1wndX1gKghSpBmg==
+
 "@humanwhocodes/config-array@^0.5.0":
   version "0.5.0"
   resolved "https://registry.yarnpkg.com/@humanwhocodes/config-array/-/config-array-0.5.0.tgz#1407967d4c6eecd7388f83acf1eaf4d0c6e58ef9"
@@ -6896,10 +6908,12 @@ standard-version@^9.0.0:
     stringify-package "^1.0.1"
     yargs "^16.0.0"
 
-"starknet@https://github.com/0xs34n/starknet.js#bugfix/handle-bignumber-fetch-response":
-  version "3.10.3"
-  resolved "https://github.com/0xs34n/starknet.js#751c2edf89d019f365f5fba8123a9df0320ff543"
+starknet@^3.11.0:
+  version "3.11.0"
+  resolved "https://registry.yarnpkg.com/starknet/-/starknet-3.11.0.tgz#fff6411692eab8f1660ad0515705a0e633c8e763"
+  integrity sha512-+Qc3xuVseV74iKHbmiUJZx0zqH0qXoSbJJn/ZdDh9Rx/qbh6sqbmwxVlWAnYd5wsrZrEMiWttUd0OW+3ICGV/w==
   dependencies:
+    "@ethersproject/bytes" "^5.6.1"
     axios "^0.23.0"
     bn.js "^5.2.0"
     elliptic "^6.5.4"

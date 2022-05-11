@@ -42,7 +42,7 @@
     "@metamask/detect-provider": "^1.2.0",
     "@metamask/providers": "^8.1.1",
     "ethereumjs-util": "^7.1.4",
-    "starknet": "https://github.com/0xs34n/starknet.js#bugfix/handle-bignumber-fetch-response"
+    "starknet": "^3.11.0"
   },
   "devDependencies": {
     "@ava/typescript": "^1.1.1",

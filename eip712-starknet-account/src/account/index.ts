@@ -9,20 +9,17 @@ import {
   InvocationsSignerDetails,
   ProviderInterface,
   Signature,
-} from 'starknet/src';
-import {
-  getSelectorFromName,
-  transactionVersion,
-} from 'starknet/src/utils/hash';
+} from 'starknet';
+import { getSelectorFromName, transactionVersion } from 'starknet/utils/hash';
 import {
   BigNumberish,
   bigNumberishArrayToDecimalStringArray,
   hexToDecimalString,
   toBN,
   toHex,
-} from 'starknet/src/utils/number';
-import { estimatedFeeToMaxFee } from 'starknet/src/utils/stark';
-import { fromCallsToExecuteCalldataWithNonce } from 'starknet/src/utils/transaction';
+} from 'starknet/utils/number';
+import { estimatedFeeToMaxFee } from 'starknet/utils/stark';
+import { fromCallsToExecuteCalldataWithNonce } from 'starknet/utils/transaction';
 
 import { MetamaskClient } from '../client';
 import { contractSalt, implementationAddress } from '../config';
