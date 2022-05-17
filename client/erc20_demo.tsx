@@ -281,7 +281,7 @@ const App = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={requestAccount} autoFocus>
+          <Button onClick={requestAccount} autoFocus id="connectMetamaskButton">
             Connect
           </Button>
         </DialogActions>
