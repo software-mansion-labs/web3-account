@@ -3,4 +3,4 @@ export const contractHash =
 export const contractSalt = '0x0';
 
 export const implementationAddress =
-  '0x6acbb6a162ff7de96a596b1e422bd16b8bdd37cbd016a0c32754162cc5117f4';
+  '0x4b7849ca009ca604066a15bf9aa4e7ff13601cb8ce920e7f23baa704d38d413';

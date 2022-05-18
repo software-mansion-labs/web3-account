@@ -18,12 +18,12 @@ import {
   toBN,
   toHex,
 } from 'starknet/utils/number';
-import { estimatedFeeToMaxFee } from 'starknet/utils/stark';
+// import { estimatedFeeToMaxFee } from 'starknet/utils/stark';
 import { fromCallsToExecuteCalldataWithNonce } from 'starknet/utils/transaction';
 
 import { MetamaskClient } from '../client';
 import { contractSalt, implementationAddress } from '../config';
-import { Eip712Signer } from '../signer';
+import { EthSigner } from '../signer';
 import { computeStarknetAddress } from '../utils';
 import contract_deploy_tx from '../web3_account_proxy.json';
 
@@ -43,7 +43,9 @@ export class EthAccount extends Account {
       ethAddress,
       provider.chainId
     );
-    const signer = new Eip712Signer(client, ethAddress);
+
+    // const signer = new Eip712Signer(client, ethAddress);
+    const signer = new EthSigner(client, ethAddress);
 
     super(provider, starknetAddress, signer);
 
@@ -66,14 +68,14 @@ export class EthAccount extends Account {
     // TODO: Update fetchEndpoint call to use estimated fee, when devnet supports it
 
     // let maxFee_: BigNumberish = '0';
-    if (transactionsDetail.maxFee || transactionsDetail.maxFee === 0) {
-      // maxFee_ = transactionsDetail.maxFee;
-    } else {
-      const estimatedFee = (await this.estimateFee(transactions, { nonce }))
-        .amount;
+    // if (transactionsDetail.maxFee || transactionsDetail.maxFee === 0) {
+    // maxFee_ = transactionsDetail.maxFee;
+    // } else {
+    //   const estimatedFee = (await this.estimateFee(transactions, { nonce }))
+    //     .amount;
 
-      estimatedFeeToMaxFee(estimatedFee).toString();
-    }
+    //   estimatedFeeToMaxFee(estimatedFee).toString();
+    // }
 
     const signerDetails: InvocationsSignerDetails = {
       walletAddress: this.address,

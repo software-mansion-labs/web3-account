@@ -10,13 +10,15 @@ from starkware.starknet.common.syscalls import call_contract, get_caller_address
 from starkware.cairo.common.hash_state import (
     hash_init, hash_finalize, hash_update, hash_update_single)
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
-from starkware.cairo.common.math import assert_in_range, assert_not_equal, assert_not_zero, assert_250_bit, assert_lt_felt
+from starkware.cairo.common.math import assert_in_range, assert_not_equal, assert_not_zero, assert_250_bit, assert_lt_felt, split_felt
 from starkware.cairo.common.uint256 import Uint256, uint256_check
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.cairo_secp.signature import verify_eth_signature_uint256
 
 from openzeppelin.account.library import (
     Call,
+    AccountCallArray,
     from_call_array_to_call,
     MultiCall,
     execute_list,
@@ -27,10 +29,7 @@ from openzeppelin.upgrades.library import (
     Proxy_initializer,
 )
 
-from contracts.recover import calc_eth_address
-from contracts.eip712 import get_hash, AccountCallArray
-
-# Last 160 bits are used for Ethereum address, 80 bits are used for nonce, 10 bits for chain
+# Last 160 bits are used for Ethereum address, 80 bits are used for nonce
 @storage_var
 func account_state() -> (res : felt):
 end
@@ -39,14 +38,6 @@ end
 const ETH_ADDRESS_MASK = 2 ** 160 - 1
 const NONCE_SHIFT = 2 ** 160
 const NONCE_MASK = 2**240 - 1 - ETH_ADDRESS_MASK
-const CHAIN_SHIFT = 2 ** 240
-const CHAIN_MASK = 2**250 - 1 - NONCE_MASK - ETH_ADDRESS_MASK
-
-const TESTNET_CHAIN_ID = 0x534e5f474f45524c49
-const MAINNET_CHAIN_ID = 0x534e5f4d41494e
-
-const COMPRESSED_MAINNET_CHAIN_ID = 0
-const COMPRESSED_TESTNET_CHAIN_ID = 1
 
 func assert_initialized{
     syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr 
@@ -57,53 +48,6 @@ func assert_initialized{
         assert_not_zero(state)
     end
     return ()
-end
-
-func compressed_chain_id_to_domain_hash(chain_id: felt) -> (domain_hash: Uint256):
-    if chain_id == COMPRESSED_TESTNET_CHAIN_ID:
-        # low, high
-        return (Uint256(0x1315bc26e0a4f976bb3f649475ef6193, 0xdb8ed783e9bc3dbcdb61cf4544b464e2))
-    end
-
-    if chain_id == COMPRESSED_MAINNET_CHAIN_ID:
-        return (Uint256(0x48b4069472bb322fbeef1215f6aac583, 0xacc9506a403c36e093633648560ab569))
-    end
-
-    with_attr error_message("Invalid compressed chain id {chain_id}."):
-        assert 1 = 0
-    end
-
-    # Never reached
-    return (Uint256(0,0))
-end
-
-func compress_chain_id(chain_id: felt) -> (compressed_chain_id: felt):
-    if chain_id == MAINNET_CHAIN_ID:
-        return (COMPRESSED_MAINNET_CHAIN_ID)
-    end
-
-    if chain_id == TESTNET_CHAIN_ID:
-        return (COMPRESSED_TESTNET_CHAIN_ID)
-    end
-
-    with_attr error_message("Invalid chain id {chain_id}."):
-        assert 1 = 0
-    end
-
-    # Never reached
-    return (0)
-end
-
-@view
-func get_domain_hash{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (domain_hash: Uint256):
-    alloc_locals
-    assert_initialized()
-
-    let (state) = account_state.read()
-    let (chain) = bitwise_and(state, CHAIN_MASK)
-    let chain = chain / CHAIN_SHIFT
-    let (domain_hash) = compressed_chain_id_to_domain_hash(chain)
-    return (domain_hash)
 end
 
 @view
@@ -160,13 +104,9 @@ func initializer{
 
     tempvar range_check_ptr = range_check_ptr
 
-    # Make sure proper chain is provided
-    let (compressed_chain_id) = compress_chain_id(chain)
-
     Proxy_initializer(proxy_admin)
 
-    let state = eth_address + compressed_chain_id * CHAIN_SHIFT
-    account_state.write(state)
+    account_state.write(eth_address)
     return ()
 end
 
@@ -176,7 +116,7 @@ func __execute__{
     pedersen_ptr : HashBuiltin*,
     range_check_ptr,
     ecdsa_ptr : SignatureBuiltin*,
-    bitwise_ptr : BitwiseBuiltin*
+    bitwise_ptr : BitwiseBuiltin*,
 }(
     call_array_len: felt,
     call_array: AccountCallArray*,
@@ -189,7 +129,6 @@ func __execute__{
 ):
     alloc_locals
 
-    let (_address) = get_contract_address()
     let (current_nonce) = get_nonce()
 
     # validate nonce
@@ -198,16 +137,7 @@ func __execute__{
         assert current_nonce = nonce
     end
 
-    let (tx_info) = get_tx_info()
-
-    validate_signature(
-        call_array_len,
-        call_array,
-        calldata,
-        nonce,
-        tx_info.max_fee,
-        tx_info.version,
-    )
+    validate_signature()
 
     # bump nonce
     increment_nonce()
@@ -216,6 +146,8 @@ func __execute__{
     let (calls : Call*) = alloc()
     from_call_array_to_call(call_array_len, call_array, calldata, calls)
     let calls_len = call_array_len
+
+    let (tx_info) = get_tx_info()
 
     local multicall: MultiCall = MultiCall(
         tx_info.account_contract_address,
@@ -234,19 +166,10 @@ end
 func validate_signature{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
         ecdsa_ptr : SignatureBuiltin*, bitwise_ptr : BitwiseBuiltin*
-}(
-    call_array_len: felt,
-    call_array: AccountCallArray*,
-    calldata: felt*,
-    nonce: felt,
-    max_fee: felt,
-    version: felt,
-) -> ():
+}() -> ():
     alloc_locals
-    let (domain_hash) = get_domain_hash()
-    let low = domain_hash.low
-    let high = domain_hash.high
     let (signature_len, signature) = get_tx_signature()
+    let (tx_info) = get_tx_info()
 
     with_attr error_message(
         "Invalid signature length. Signature should have exactly 5 elements."
@@ -257,21 +180,16 @@ func validate_signature{
     let v = signature[0]
     let r = Uint256(signature[1], signature[2])
     let s = Uint256(signature[3], signature[4])
-    let (hash) = get_hash(
-        call_array_len,
-        call_array,
-        calldata,
-        nonce,
-        max_fee,
-        version,
-        domain_hash,
-    )
-    let (address) = calc_eth_address(hash, v, r, s)
+
+    let (tx_hash_high, tx_hash_low) = split_felt(tx_info.transaction_hash)
+    let hash_uint = Uint256(tx_hash_low, tx_hash_high)
+
     let (stored) = get_eth_address()
-    
-    with_attr error_message(
-            "Decoded address does not match expected address. Decoded: ${address}, expected: {stored}."):
-        assert stored = address
+
+    let (keccak_ptr: felt*) = alloc()
+
+    with keccak_ptr:
+        verify_eth_signature_uint256(hash_uint, r, s, v, stored)
     end
 
     return ()

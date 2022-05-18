@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from starknet_py.contract import Contract
 from starknet_py.net import Client
 from starknet_py.net.models import StarknetChainId, Deploy, Transaction
-from starknet_py.utils.compiler.starknet_compile import starknet_compile
+from starknet_py.compile.compiler import starknet_compile
 from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.services.api.contract_definition import ContractDefinition
 
