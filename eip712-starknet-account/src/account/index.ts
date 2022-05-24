@@ -10,6 +10,7 @@ import {
   ProviderInterface,
   Signature,
 } from 'starknet';
+import { estimatedFeeToMaxFee } from 'starknet/dist/utils/stark';
 import { getSelectorFromName, transactionVersion } from 'starknet/utils/hash';
 import {
   BigNumberish,
@@ -18,7 +19,6 @@ import {
   toBN,
   toHex,
 } from 'starknet/utils/number';
-// import { estimatedFeeToMaxFee } from 'starknet/utils/stark';
 import { fromCallsToExecuteCalldataWithNonce } from 'starknet/utils/transaction';
 
 import { MetamaskClient } from '../client';
@@ -41,7 +41,6 @@ export class EthAccount extends Account {
 
     const starknetAddress = computeStarknetAddress(ethAddress);
 
-    // const signer = new Eip712Signer(client, ethAddress);
     const signer = new EthSigner(client, ethAddress);
 
     super(provider, starknetAddress, signer);
@@ -64,15 +63,15 @@ export class EthAccount extends Account {
 
     // TODO: Update fetchEndpoint call to use estimated fee, when devnet supports it
 
-    // let maxFee_: BigNumberish = '0';
-    // if (transactionsDetail.maxFee || transactionsDetail.maxFee === 0) {
-    // maxFee_ = transactionsDetail.maxFee;
-    // } else {
-    //   const estimatedFee = (await this.estimateFee(transactions, { nonce }))
-    //     .amount;
+    let _maxFee: BigNumberish = '0';
+    if (transactionsDetail.maxFee || transactionsDetail.maxFee === 0) {
+      _maxFee = transactionsDetail.maxFee;
+    } else {
+      const estimatedFee = (await this.estimateFee(transactions, { nonce }))
+        .amount;
 
-    //   estimatedFeeToMaxFee(estimatedFee).toString();
-    // }
+      _maxFee = estimatedFeeToMaxFee(estimatedFee).toString();
+    }
 
     const signerDetails: InvocationsSignerDetails = {
       walletAddress: this.address,
@@ -127,20 +126,15 @@ export class EthAccount extends Account {
     return deploymentResult;
   }
 
-  // public async upgradeImplementationAddress(): Promise<AddTransactionResponse> {
-  // const nonce = await this.getNonce()
-  // const maxFee: BigNumberish = '0';
-  // const txHash = computeHashOnElements()
-  // const signerDetails: InvocationsSignerDetails = {
-  //   walletAddress: this.address,
-  //   nonce,
-  //   maxFee,
-  //   version: toBN(transactionVersion),
-  //   chainId: this.chainId,
-  // };
-  // const transaction: Invocation: {
-  //   contractAddress: this.address,
-  //   entrypoint:
-  // }
-  // }
+  public async upgradeImplementationAddress(
+    implementation: BigNumberish
+  ): Promise<AddTransactionResponse> {
+    const call: Call = {
+      contractAddress: this.address,
+      entrypoint: 'upgrade',
+      calldata: [implementation],
+    };
+
+    return this.execute(call);
+  }
 }

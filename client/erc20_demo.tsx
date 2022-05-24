@@ -117,6 +117,22 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
       .finally(() => setLoading(false));
   };
 
+  const upgradeContract = () => {
+    if (loading) {
+      return;
+    }
+
+    setLoading(true);
+
+    lib
+      .upgradeImplementationAddress(
+        "0x680c7a01afbd9f97aec722f80e72d4830ca3c453ebeae1d8dbb900e2b10ae8e"
+      )
+      .then(trackTx)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
   return (
     <Stack gap={2}>
       <Typography variant="h3">Token wallet</Typography>
@@ -173,6 +189,17 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
           variant="contained"
         >
           Send tokens
+        </LoadingButton>
+      </Stack>
+
+      <Stack gap={2} component="form" onSubmit={upgradeContract}>
+        <Typography variant="h6">Upgrade contract</Typography>
+        <LoadingButton
+          type="submit"
+          loading={loading || !!txInProgress}
+          variant="contained"
+        >
+          Upgrade account
         </LoadingButton>
       </Stack>
     </Stack>
