@@ -2,8 +2,7 @@
   "scripts": {
     "build": "parcel build --public-url /starknet-web3-rpc-adapter index.html",
     "deploy-docs": "yarn build && gh-pages -d dist",
-    "dev": "parcel index.html",
-    "generate-hashes": "ts-node generateHashes.ts"
+    "dev": "parcel index.html"
   },
   "dependencies": {
     "@emotion/react": "^11.7.1",
