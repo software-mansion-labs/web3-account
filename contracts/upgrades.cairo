@@ -11,20 +11,20 @@ func Upgraded(implementation: felt):
 end
 
 func Proxy_set_implementation{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
-    }(new_implementation: felt):
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}(new_implementation: felt):
     Proxy_implementation_address.write(new_implementation)
     Upgraded.emit(new_implementation)
     return ()
 end
 
 func Proxy_get_implementation{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
-    }() -> (implementation: felt):
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}() -> (implementation: felt):
     let (implementation) = Proxy_implementation_address.read()
 
     return (implementation)
