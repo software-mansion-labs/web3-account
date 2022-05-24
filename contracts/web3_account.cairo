@@ -24,10 +24,7 @@ from openzeppelin.account.library import (
     execute_list,
 )
 
-from openzeppelin.upgrades.library import (
-    Proxy_initialized,
-    Proxy_initializer,
-)
+from contracts.upgrades import Proxy_set_implementation
 
 # Last 160 bits are used for Ethereum address, 80 bits are used for nonce
 @storage_var
@@ -48,6 +45,17 @@ func assert_initialized{
         assert_not_zero(state)
     end
     return ()
+end
+
+func assert_only_self{
+    syscall_ptr: felt*
+} () -> ():
+    let (self) = get_contract_address()
+    let (caller_address) = get_caller_address()
+    with_attr error_message("must be called via execute"):
+        assert self = caller_address
+    end
+    return()
 end
 
 @view
@@ -86,14 +94,27 @@ func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
 end
 
 @external
+func upgrade{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}(
+    implementation: felt
+):
+    assert_only_self()
+
+    Proxy_set_implementation(implementation)
+
+    return ()
+end
+
+@external
 func initializer{
     syscall_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
     range_check_ptr
 }(
-    proxy_admin: felt,
     eth_address: felt,
-    chain: felt
 ):
     alloc_locals
 
@@ -103,8 +124,6 @@ func initializer{
     end
 
     tempvar range_check_ptr = range_check_ptr
-
-    Proxy_initializer(proxy_admin)
 
     account_state.write(eth_address)
     return ()

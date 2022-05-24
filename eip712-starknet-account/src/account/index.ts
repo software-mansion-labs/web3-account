@@ -39,10 +39,7 @@ export class EthAccount extends Account {
       throw new Error('Provided address is not valid ethereum address.');
     }
 
-    const starknetAddress = computeStarknetAddress(
-      ethAddress,
-      provider.chainId
-    );
+    const starknetAddress = computeStarknetAddress(ethAddress);
 
     // const signer = new Eip712Signer(client, ethAddress);
     const signer = new EthSigner(client, ethAddress);
@@ -118,8 +115,9 @@ export class EthAccount extends Account {
         contract_address_salt: contractSalt,
         constructor_calldata: [
           hexToDecimalString(implementationAddress),
+          hexToDecimalString(getSelectorFromName('initializer')),
+          '1',
           hexToDecimalString(this.ethAddress),
-          hexToDecimalString(this.chainId),
         ],
         contract_definition:
           contract_deploy_tx.contract_definition as CompressedCompiledContract,
@@ -128,4 +126,21 @@ export class EthAccount extends Account {
 
     return deploymentResult;
   }
+
+  // public async upgradeImplementationAddress(): Promise<AddTransactionResponse> {
+  // const nonce = await this.getNonce()
+  // const maxFee: BigNumberish = '0';
+  // const txHash = computeHashOnElements()
+  // const signerDetails: InvocationsSignerDetails = {
+  //   walletAddress: this.address,
+  //   nonce,
+  //   maxFee,
+  //   version: toBN(transactionVersion),
+  //   chainId: this.chainId,
+  // };
+  // const transaction: Invocation: {
+  //   contractAddress: this.address,
+  //   entrypoint:
+  // }
+  // }
 }

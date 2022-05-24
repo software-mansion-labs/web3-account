@@ -66,7 +66,7 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
 
     try {
       const parsedAmount = bnToUint256(toBN(amount, 10));
-      const starknetAddress = computeStarknetAddress(address, lib.chainId);
+      const starknetAddress = computeStarknetAddress(address);
 
       return [
         starknetAddress,
