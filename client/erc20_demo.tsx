@@ -117,7 +117,9 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
       .finally(() => setLoading(false));
   };
 
-  const upgradeContract = () => {
+  const upgradeContract = (e) => {
+    e.preventDefault();
+
     if (loading) {
       return;
     }
