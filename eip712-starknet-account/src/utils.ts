@@ -1,8 +1,9 @@
 import { fromRpcSig } from 'ethereumjs-util';
 import { Signature } from 'starknet';
-import { StarknetChainId } from 'starknet/constants';
-import { computeHashOnElements } from 'starknet/utils/hash';
-import { decodeShortString } from 'starknet/utils/shortString';
+import {
+  computeHashOnElements,
+  getSelectorFromName,
+} from 'starknet/utils/hash';
 
 import { contractHash, contractSalt, implementationAddress } from './config';
 
@@ -22,18 +23,16 @@ export const parseSignature = (signature: string): Signature => {
   return [vStr, rLow, rHigh, sLow, sHigh];
 };
 
-export const nameForStarknetChain = (chain: StarknetChainId) => {
-  return decodeShortString(chain);
-};
-
-export const computeStarknetAddress = (
-  ethAddress: string,
-  chain: StarknetChainId
-) =>
+export const computeStarknetAddress = (ethAddress: string) =>
   computeHashOnElements([
     '0x' + new Buffer('STARKNET_CONTRACT_ADDRESS', 'ascii').toString('hex'),
     0,
     contractSalt,
     contractHash,
-    computeHashOnElements([implementationAddress, ethAddress, chain]),
+    computeHashOnElements([
+      implementationAddress,
+      getSelectorFromName('initializer'),
+      '1',
+      ethAddress,
+    ]),
   ]);

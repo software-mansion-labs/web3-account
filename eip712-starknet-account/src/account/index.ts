@@ -10,6 +10,7 @@ import {
   ProviderInterface,
   Signature,
 } from 'starknet';
+import { estimatedFeeToMaxFee } from 'starknet/dist/utils/stark';
 import { getSelectorFromName, transactionVersion } from 'starknet/utils/hash';
 import {
   BigNumberish,
@@ -18,12 +19,11 @@ import {
   toBN,
   toHex,
 } from 'starknet/utils/number';
-import { estimatedFeeToMaxFee } from 'starknet/utils/stark';
 import { fromCallsToExecuteCalldataWithNonce } from 'starknet/utils/transaction';
 
 import { MetamaskClient } from '../client';
 import { contractSalt, implementationAddress } from '../config';
-import { Eip712Signer } from '../signer';
+import { EthSigner } from '../signer';
 import { computeStarknetAddress } from '../utils';
 import contract_deploy_tx from '../web3_account_proxy.json';
 
@@ -39,11 +39,9 @@ export class EthAccount extends Account {
       throw new Error('Provided address is not valid ethereum address.');
     }
 
-    const starknetAddress = computeStarknetAddress(
-      ethAddress,
-      provider.chainId
-    );
-    const signer = new Eip712Signer(client, ethAddress);
+    const starknetAddress = computeStarknetAddress(ethAddress);
+
+    const signer = new EthSigner(client, ethAddress);
 
     super(provider, starknetAddress, signer);
 
@@ -65,14 +63,14 @@ export class EthAccount extends Account {
 
     // TODO: Update fetchEndpoint call to use estimated fee, when devnet supports it
 
-    // let maxFee_: BigNumberish = '0';
+    let _maxFee: BigNumberish = '0';
     if (transactionsDetail.maxFee || transactionsDetail.maxFee === 0) {
-      // maxFee_ = transactionsDetail.maxFee;
+      _maxFee = transactionsDetail.maxFee;
     } else {
       const estimatedFee = (await this.estimateFee(transactions, { nonce }))
         .amount;
 
-      estimatedFeeToMaxFee(estimatedFee).toString();
+      _maxFee = estimatedFeeToMaxFee(estimatedFee).toString();
     }
 
     const signerDetails: InvocationsSignerDetails = {
@@ -116,8 +114,9 @@ export class EthAccount extends Account {
         contract_address_salt: contractSalt,
         constructor_calldata: [
           hexToDecimalString(implementationAddress),
+          hexToDecimalString(getSelectorFromName('initializer')),
+          '1',
           hexToDecimalString(this.ethAddress),
-          hexToDecimalString(this.chainId),
         ],
         contract_definition:
           contract_deploy_tx.contract_definition as CompressedCompiledContract,
@@ -125,5 +124,17 @@ export class EthAccount extends Account {
     );
 
     return deploymentResult;
+  }
+
+  public async upgradeImplementationAddress(
+    implementation: BigNumberish
+  ): Promise<AddTransactionResponse> {
+    const call: Call = {
+      contractAddress: this.address,
+      entrypoint: 'upgrade',
+      calldata: [implementation],
+    };
+
+    return this.execute(call);
   }
 }

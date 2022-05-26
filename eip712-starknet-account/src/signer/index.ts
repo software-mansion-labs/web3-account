@@ -4,14 +4,16 @@ import {
   Signature,
   SignerInterface,
 } from 'starknet';
-import { getSelectorFromName } from 'starknet/utils/hash';
-import { toBN, toHex } from 'starknet/utils/number';
+import {
+  calculcateTransactionHash,
+  getSelectorFromName,
+} from 'starknet/utils/hash';
+import { fromCallsToExecuteCalldataWithNonce } from 'starknet/utils/transaction';
 
 import { MetamaskClient } from '../client';
-import { getTypedData } from '../typedData';
 import { parseSignature } from '../utils';
 
-export class Eip712Signer implements SignerInterface {
+export class EthSigner implements SignerInterface {
   constructor(
     private client: MetamaskClient,
     public readonly ethAddress: string
@@ -33,43 +35,32 @@ export class Eip712Signer implements SignerInterface {
     transactions: Invocation[],
     transactionsDetail: InvocationsSignerDetails
   ): Promise<Signature> {
-    if (transactions.length === 0) {
-      throw new Error('No transaction to sign');
-    }
+    const calldata = fromCallsToExecuteCalldataWithNonce(
+      transactions,
+      transactionsDetail.nonce
+    );
 
-    let version: string;
-    if (typeof transactionsDetail.version === 'string') {
-      version = transactionsDetail.version;
-    } else {
-      version = toHex(toBN(transactionsDetail.version));
-    }
+    const msgHash = calculcateTransactionHash(
+      transactionsDetail.walletAddress,
+      transactionsDetail.version,
+      getSelectorFromName('__execute__'),
+      calldata,
+      transactionsDetail.maxFee,
+      transactionsDetail.chainId
+    );
 
-    const message = {
-      nonce: transactionsDetail.nonce,
-      maxFee: transactionsDetail.maxFee,
-      version: version,
-      calls: transactions.map((transaction) => ({
-        address: transaction.contractAddress,
-        selector: getSelectorFromName(transaction.entrypoint),
-        calldata: transaction.calldata,
-      })),
-    };
+    const hash = '0x' + msgHash.slice(2).padStart(64, '0');
 
-    const data = {
-      ...getTypedData(transactionsDetail.chainId),
-      message,
-    };
-
-    const signature = await this.sign(data);
-
-    return parseSignature(signature);
+    return this.signRaw(hash);
   }
 
-  sign(data: Record<string, unknown>): Promise<string> {
-    return this.client.request(
-      'eth_signTypedData_v4',
+  public async signRaw(data: string): Promise<Signature> {
+    const signature = (await this.client.request(
+      'eth_sign',
       this.ethAddress,
-      JSON.stringify(data)
-    ) as Promise<string>;
+      data
+    )) as string;
+
+    return parseSignature(signature);
   }
 }
