@@ -1,4 +1,4 @@
-import { isValidAddress } from 'ethereumjs-util';
+import {isValidAddress} from 'ethereumjs-util';
 import {
   Abi,
   Account,
@@ -59,18 +59,15 @@ export class EthAccount extends Account {
   ): Promise<AddTransactionResponse> {
     const transactions = Array.isArray(calls) ? calls : [calls];
     const nonce = toBN(transactionsDetail.nonce ?? (await this.getNonce()));
-    const maxFee: BigNumberish = '0';
 
-    // TODO: Update fetchEndpoint call to use estimated fee, when devnet supports it
+    let maxFee: BigNumberish;
+    if (transactionsDetail.maxFee == undefined) {
+      const estimatedFee = (await this.estimateFee(transactions, {nonce}))
+          .amount;
 
-    let _maxFee: BigNumberish = '0';
-    if (transactionsDetail.maxFee || transactionsDetail.maxFee === 0) {
-      _maxFee = transactionsDetail.maxFee;
+      maxFee = estimatedFeeToMaxFee(estimatedFee).toString();
     } else {
-      const estimatedFee = (await this.estimateFee(transactions, { nonce }))
-        .amount;
-
-      _maxFee = estimatedFeeToMaxFee(estimatedFee).toString();
+      maxFee = transactionsDetail.maxFee;
     }
 
     const signerDetails: InvocationsSignerDetails = {
@@ -106,24 +103,22 @@ export class EthAccount extends Account {
   }
 
   public async deployAccount(): Promise<AddTransactionResponse> {
-    const deploymentResult = await this.fetchEndpoint(
-      'add_transaction',
-      undefined,
-      {
-        type: 'DEPLOY',
-        contract_address_salt: contractSalt,
-        constructor_calldata: [
-          hexToDecimalString(implementationAddress),
-          hexToDecimalString(getSelectorFromName('initializer')),
-          '1',
-          hexToDecimalString(this.ethAddress),
-        ],
-        contract_definition:
-          contract_deploy_tx.contract_definition as CompressedCompiledContract,
-      }
+    return await this.fetchEndpoint(
+        'add_transaction',
+        undefined,
+        {
+          type: 'DEPLOY',
+          contract_address_salt: contractSalt,
+          constructor_calldata: [
+            hexToDecimalString(implementationAddress),
+            hexToDecimalString(getSelectorFromName('initializer')),
+            '1',
+            hexToDecimalString(this.ethAddress),
+          ],
+          contract_definition:
+              contract_deploy_tx.contract_definition as CompressedCompiledContract,
+        }
     );
-
-    return deploymentResult;
   }
 
   public async upgradeImplementationAddress(
