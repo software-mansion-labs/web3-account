@@ -23,16 +23,18 @@ export const parseSignature = (signature: string): Signature => {
   return [vStr, rLow, rHigh, sLow, sHigh];
 };
 
+export const constructorArguments = (ethAddress: string) => [
+  implementationAddress,
+  getSelectorFromName('initializer'),
+  '1',
+  ethAddress,
+];
+
 export const computeStarknetAddress = (ethAddress: string) =>
   computeHashOnElements([
     '0x' + new Buffer('STARKNET_CONTRACT_ADDRESS', 'ascii').toString('hex'),
     0,
     contractSalt,
     contractHash,
-    computeHashOnElements([
-      implementationAddress,
-      getSelectorFromName('initializer'),
-      '1',
-      ethAddress,
-    ]),
+    computeHashOnElements(constructorArguments(ethAddress)),
   ]);

@@ -4,6 +4,7 @@ import {
   Signature,
   SignerInterface,
 } from 'starknet';
+import { getMessageHash } from 'starknet/src/utils/typedData';
 import {
   calculcateTransactionHash,
   getSelectorFromName,
@@ -25,10 +26,9 @@ export class EthSigner implements SignerInterface {
     ])) as string;
   }
 
-  public async signMessage(): Promise<Signature> {
-    throw new Error(
-      'signMessage is not supported in ETHSigner, use default Signer.'
-    );
+  public signMessage(typedData, accountAddress): Promise<Signature> {
+    const msgHash = getMessageHash(typedData, accountAddress);
+    return this.signRaw(msgHash);
   }
 
   public async signTransaction(
