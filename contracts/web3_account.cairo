@@ -3,10 +3,9 @@
 %lang starknet
 
 from starkware.cairo.common.registers import get_fp_and_pc
-from starkware.starknet.common.syscalls import get_contract_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
-from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_signature, get_tx_info
+from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_contract_address, get_tx_signature, get_tx_info
 from starkware.cairo.common.hash_state import (
     hash_init, hash_finalize, hash_update, hash_update_single)
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
@@ -19,12 +18,10 @@ from starkware.cairo.common.cairo_secp.signature import verify_eth_signature_uin
 from openzeppelin.account.library import (
     Call,
     AccountCallArray,
-    from_call_array_to_call,
-    MultiCall,
-    execute_list,
+    Account,
 )
 
-from contracts.upgrades import Proxy_set_implementation
+from contracts.upgrades import Proxy_get_implementation, Proxy_set_implementation
 
 # Last 160 bits are used for Ethereum address, 80 bits are used for nonce
 @storage_var
@@ -52,7 +49,7 @@ func assert_only_self{
 } () -> ():
     let (self) = get_contract_address()
     let (caller_address) = get_caller_address()
-    with_attr error_message("must be called via execute"):
+    with_attr error_message("Must be called via execute."):
         assert self = caller_address
     end
     return()
@@ -83,8 +80,7 @@ func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     let (state) = account_state.read()
     let new_state = state + NONCE_SHIFT
 
-    with_attr error_message(
-            "Account state value should be 250 bits."):
+    with_attr error_message("Account state value should be 250 bits."):
         assert_250_bit(new_state)
     end
 
@@ -108,6 +104,18 @@ func upgrade{
     return ()
 end
 
+@view
+func get_implementation{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}() -> (implementation: felt):
+    let (implementation) = Proxy_get_implementation()
+
+    return (implementation)
+end
+
+
 @external
 func initializer{
     syscall_ptr: felt*,
@@ -118,8 +126,7 @@ func initializer{
 ):
     alloc_locals
 
-    with_attr error_message(
-            "Invalid address length."):
+    with_attr error_message("Invalid address length."):
         assert_lt_felt(eth_address, NONCE_SHIFT)
     end
 
@@ -148,48 +155,41 @@ func __execute__{
 ):
     alloc_locals
 
-    let (current_nonce) = get_nonce()
+    let (caller) = get_caller_address()
+
+    with_attr error_message("Caller must be 0"):
+        assert caller = 0
+    end
+
+    let (local current_nonce) = get_nonce()
 
     # validate nonce
-    with_attr error_message(
-            "Invalid nonce. Received: {nonce}, should be {current_nonce}"):
+    with_attr error_message("Invalid nonce. Received: {nonce}, should be {current_nonce}"):
         assert current_nonce = nonce
     end
 
-    validate_signature()
+    validate_tx_signature()
 
     # bump nonce
     increment_nonce()
 
     # execute call
     let (calls : Call*) = alloc()
-    from_call_array_to_call(call_array_len, call_array, calldata, calls)
+    Account._from_call_array_to_call(call_array_len, call_array, calldata, calls)
     let calls_len = call_array_len
 
-    let (tx_info) = get_tx_info()
-
-    local multicall: MultiCall = MultiCall(
-        tx_info.account_contract_address,
-        calls_len,
-        calls,
-        nonce,
-        tx_info.max_fee,
-        tx_info.version
-    )
     let (response : felt*) = alloc()
-    let (response_len) = execute_list(multicall.calls_len, multicall.calls, response)
+    let (response_len) = Account._execute_list(calls_len, calls, response)
 
     return (response_len=response_len, response=response)
 end
 
-func validate_signature{
+@view
+func is_valid_signature{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
         ecdsa_ptr : SignatureBuiltin*, bitwise_ptr : BitwiseBuiltin*
-}() -> ():
+}(hash: felt, signature_len: felt, signature: felt*):
     alloc_locals
-    let (signature_len, signature) = get_tx_signature()
-    let (tx_info) = get_tx_info()
-
     with_attr error_message(
         "Invalid signature length. Signature should have exactly 5 elements."
     ):
@@ -200,7 +200,7 @@ func validate_signature{
     let r = Uint256(signature[1], signature[2])
     let s = Uint256(signature[3], signature[4])
 
-    let (tx_hash_high, tx_hash_low) = split_felt(tx_info.transaction_hash)
+    let (tx_hash_high, tx_hash_low) = split_felt(hash)
     let hash_uint = Uint256(tx_hash_low, tx_hash_high)
 
     let (stored) = get_eth_address()
@@ -211,5 +211,16 @@ func validate_signature{
         verify_eth_signature_uint256(hash_uint, r, s, v, stored)
     end
 
+    return ()
+end
+
+func validate_tx_signature{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*, bitwise_ptr : BitwiseBuiltin*
+}():
+    alloc_locals
+    let (signature_len, signature) = get_tx_signature()
+    let (tx_info) = get_tx_info()
+    is_valid_signature(tx_info.transaction_hash, signature_len, signature)
     return ()
 end
