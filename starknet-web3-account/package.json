@@ -1,5 +1,5 @@
 {
-  "name": "eip712-starknet-account",
+  "name": "starknet-web3-account",
   "version": "0.1.0",
   "description": "EIP712 Starknet Account",
   "main": "build/main/index.js",

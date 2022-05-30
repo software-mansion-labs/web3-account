@@ -1,4 +1,4 @@
-# 🐍 web3 to StarkNet json-rpc adapter
+# 🐍 StarknNet web3 account
 
 # Development setup
 ## Clone deps with submodules
@@ -10,6 +10,8 @@ git clone --recurse-submodules git@github.com:software-mansion-labs/starknet-web
 ```
 poetry install
 yarn --cwd client install
+yarn --cwd starknet-web3-account install
+yarn --cwd starknet-web3-account build
 ```
 
 ## Setup envs
@@ -24,36 +26,15 @@ chmod +x ./.git/hooks/pre-commit
 chmod +x ./.git/hooks/pre-push
 ```
 
-## Certificates
-
-Metamask support suggesting nodes only with https. Install `mkcert` first.
-
-```
-mkcert -key-file key.pem -cert-file cert.pem example.com *.example.com
-```
-
 ## Running demo
-In separate terminals start required services:
+In separate terminals start required services.
 
 Dev network & setup contracts:
 ``
 poe devnet
 ``
 
-Run server:
-```
-po devserver
-```
-
 Run client:
 ```
-poe dev
+poe devclient
 ```
-
-You can run interactive python shell with `account` and `erc20` available: 
-```
-CAIRO_PATH=./contracts/keccak-cairo/keccak:./contracts/cairo-contracts/ PYTHONPATH=$PWD poetry run python -i contracts/interactive.py ETH_ADDRESS
-```
-
-
-Open `http://localhost:1234/` and click "CONNECT TO METAMASK".

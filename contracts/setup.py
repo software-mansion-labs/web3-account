@@ -24,15 +24,13 @@ if network == "devnet":
 else:
     client = Client("testnet")
 
-account_script = Path("./contracts/web3_account.cairo").read_text()
-proxy_script = Path("./contracts/proxy.cairo").read_text()
+account_script = Path("./contracts/account/web3_account.cairo").read_text()
+proxy_script = Path("./contracts/account/proxy.cairo").read_text()
 erc_20_script = Path("./contracts/demo_token.cairo").read_text()
 CONTRACT_SALT = int(os.getenv("CONTRACT_SALT"))
 
 proxy_hash = Contract.compute_contract_hash(compilation_source=proxy_script)
 print("PROXY CONTRACT HASH:", proxy_hash)
-
-GOERLI_CHAIN_ID = 5
 
 # Save contract definition
 # Starknet.js compresses program in a different way
@@ -42,7 +40,7 @@ dump = Transaction.Schema().dump(obj=Deploy(
     contract_definition=definition,
     constructor_calldata=[],
 ))
-Path("eip712-starknet-account/src/web3_account_proxy.json").write_text(json.dumps(dump))
+Path("starknet-web3-account/src/web3_account_proxy.json").write_text(json.dumps(dump))
 
 account_deployment = Contract.deploy_sync(
     client=client,
