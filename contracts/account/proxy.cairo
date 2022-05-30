@@ -3,7 +3,7 @@
 
 from starkware.starknet.common.syscalls import delegate_call, get_contract_address
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from contracts.upgrades import Proxy_get_implementation, Proxy_set_implementation
+from contracts.account.upgrades import Proxy_get_implementation, Proxy_set_implementation
 
 @constructor
 func constructor{

@@ -21,7 +21,7 @@ from openzeppelin.account.library import (
     Account,
 )
 
-from contracts.upgrades import Proxy_get_implementation, Proxy_set_implementation
+from contracts.account.upgrades import Proxy_get_implementation, Proxy_set_implementation
 
 # Last 160 bits are used for Ethereum address, 80 bits are used for nonce
 @storage_var

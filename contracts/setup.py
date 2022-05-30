@@ -24,8 +24,8 @@ if network == "devnet":
 else:
     client = Client("testnet")
 
-account_script = Path("./contracts/web3_account.cairo").read_text()
-proxy_script = Path("./contracts/proxy.cairo").read_text()
+account_script = Path("./contracts/account/web3_account.cairo").read_text()
+proxy_script = Path("./contracts/account/proxy.cairo").read_text()
 erc_20_script = Path("./contracts/demo_token.cairo").read_text()
 CONTRACT_SALT = int(os.getenv("CONTRACT_SALT"))
 

@@ -11,10 +11,10 @@ from starkware.starknet.testing.starknet import Starknet
 from eth_account import Account
 
 ACCOUNT_FILE = os.path.join(
-    os.path.dirname(__file__), "./web3_account.cairo")
+    os.path.dirname(__file__), "./account/web3_account.cairo")
 
 PROXY_FILE = os.path.join(
-    os.path.dirname(__file__), "./proxy.cairo")
+    os.path.dirname(__file__), "./account/proxy.cairo")
 
 TEST_CONTRACT_FILE = os.path.join(
     os.path.dirname(__file__), "./test_contract.cairo")
