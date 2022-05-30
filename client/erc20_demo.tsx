@@ -2,7 +2,7 @@ import {
   EthAccount,
   getAdapter,
   computeStarknetAddress,
-} from "eip712-starknet-account";
+} from "starknet-web3-account";
 import { CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import {
   FormEventHandler,
@@ -127,7 +127,7 @@ const TokenWallet: React.FC<{ lib: EthAccount }> = ({ lib }) => {
     setLoading(true);
 
     lib
-      .upgradeImplementationAddress(
+      .upgradeAccount(
         "0x680c7a01afbd9f97aec722f80e72d4830ca3c453ebeae1d8dbb900e2b10ae8e"
       )
       .then(trackTx)

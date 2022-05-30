@@ -32,8 +32,6 @@ CONTRACT_SALT = int(os.getenv("CONTRACT_SALT"))
 proxy_hash = Contract.compute_contract_hash(compilation_source=proxy_script)
 print("PROXY CONTRACT HASH:", proxy_hash)
 
-GOERLI_CHAIN_ID = 5
-
 # Save contract definition
 # Starknet.js compresses program in a different way
 definition = ContractDefinition.loads(starknet_compile(proxy_script))
@@ -42,7 +40,7 @@ dump = Transaction.Schema().dump(obj=Deploy(
     contract_definition=definition,
     constructor_calldata=[],
 ))
-Path("eip712-starknet-account/src/web3_account_proxy.json").write_text(json.dumps(dump))
+Path("starknet-web3-account/src/web3_account_proxy.json").write_text(json.dumps(dump))
 
 account_deployment = Contract.deploy_sync(
     client=client,

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { AddTransactionResponse } from "starknet";
-import { EthAccount } from "eip712-starknet-account";
+import { EthAccount } from "starknet-web3-account";
 import useSWR from "swr";
 
 export type TrackTxStatus = (response: AddTransactionResponse) => void;
