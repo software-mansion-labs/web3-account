@@ -14,7 +14,7 @@ ACCOUNT_FILE = os.path.join(
     os.path.dirname(__file__), "./account/web3_account.cairo")
 
 PROXY_FILE = os.path.join(
-    os.path.dirname(__file__), "./account/proxy.cairo")
+    os.path.dirname(__file__), "..//account/proxy.cairo")
 
 TEST_CONTRACT_FILE = os.path.join(
     os.path.dirname(__file__), "./test_contract.cairo")
@@ -74,6 +74,7 @@ def hash_invocation(invocation: StarknetContractFunctionInvocation, selector="__
 
 
 # TODO: make sure caller is checked
+# TODO: make sure initialize can be done just once
 
 @pytest.mark.asyncio
 async def test_web3_account_valid_signature(test_contract, contract):

@@ -14,6 +14,7 @@ from starkware.cairo.common.uint256 import Uint256, uint256_check
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_secp.signature import verify_eth_signature_uint256
+from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
 
 from openzeppelin.account.library import (
     Call,
@@ -33,17 +34,6 @@ const ETH_ADDRESS_MASK = 2 ** 160 - 1
 const NONCE_SHIFT = 2 ** 160
 const NONCE_MASK = 2**240 - 1 - ETH_ADDRESS_MASK
 
-func assert_initialized{
-    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr 
-}():
-    with_attr error_message(
-            "Account not initialized."):
-        let (state) = account_state.read()
-        assert_not_zero(state)
-    end
-    return ()
-end
-
 func assert_only_self{
     syscall_ptr: felt*
 } () -> ():
@@ -57,8 +47,6 @@ end
 
 @view
 func get_eth_address{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (address: felt):
-    assert_initialized()
-
     let (state) = account_state.read()
     let (address) = bitwise_and(state, ETH_ADDRESS_MASK)
     return (address)
@@ -66,8 +54,6 @@ end
 
 @view
 func get_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}() -> (nonce : felt):
-    assert_initialized()
-
     let (state) = account_state.read()
     let (nonce) = bitwise_and(state, NONCE_MASK)
     let nonce = nonce / NONCE_SHIFT
@@ -75,8 +61,6 @@ func get_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr
 end
 
 func increment_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> ():
-    assert_initialized()
-
     let (state) = account_state.read()
     let new_state = state + NONCE_SHIFT
 
@@ -126,11 +110,14 @@ func initializer{
 ):
     alloc_locals
 
+    with_attr error_message("Account already initialized."):
+        let (state) = account_state.read()
+        assert state = 0
+    end
+
     with_attr error_message("Invalid address length."):
         assert_lt_felt(eth_address, NONCE_SHIFT)
     end
-
-    tempvar range_check_ptr = range_check_ptr
 
     account_state.write(eth_address)
     return ()
@@ -145,7 +132,7 @@ func __execute__{
     bitwise_ptr : BitwiseBuiltin*
 }(
     call_array_len: felt,
-    call_array: AccountCallArray*,
+    call_array  : AccountCallArray*,
     calldata_len: felt,
     calldata: felt*,
     nonce: felt
@@ -157,14 +144,14 @@ func __execute__{
 
     let (caller) = get_caller_address()
 
-    with_attr error_message("Caller must be 0"):
+    with_attr error_message("Caller must be external."):
         assert caller = 0
     end
 
     let (local current_nonce) = get_nonce()
 
     # validate nonce
-    with_attr error_message("Invalid nonce. Received: {nonce}, should be {current_nonce}"):
+    with_attr error_message("Invalid nonce. Received: {nonce}, should be {current_nonce}."):
         assert current_nonce = nonce
     end
 
@@ -205,11 +192,11 @@ func is_valid_signature{
 
     let (stored) = get_eth_address()
 
-    let (keccak_ptr: felt*) = alloc()
+    let (local keccak_ptr_start) = alloc()
+    let keccak_ptr = keccak_ptr_start
 
-    with keccak_ptr:
-        verify_eth_signature_uint256(hash_uint, r, s, v, stored)
-    end
+    verify_eth_signature_uint256{keccak_ptr=keccak_ptr}(hash_uint, r, s, v, stored)
+    finalize_keccak(keccak_ptr_start=keccak_ptr_start, keccak_ptr_end=keccak_ptr)
 
     return ()
 end

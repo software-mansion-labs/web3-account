@@ -54,3 +54,26 @@ func __default__{
 
     return (retdata_size=retdata_size, retdata=retdata)
 end
+
+@l1_handler
+@raw_input
+func __l1_default__{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+    }(
+        selector: felt,
+        calldata_size: felt,
+        calldata: felt*
+    ):
+    let (address) = Proxy_get_implementation()
+
+    delegate_l1_handler(
+        contract_address=address,
+        function_selector=selector,
+        calldata_size=calldata_size,
+        calldata=calldata
+    )
+
+    return ()
+end
