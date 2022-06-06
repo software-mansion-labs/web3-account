@@ -25,7 +25,7 @@ starknet-devnet = "^0.2.1"
 
 [tool.poe.tasks]
 devclient = "yarn --cwd client dev"
-test = {shell = "PYTHONPATH=$PWD pytest -s contracts/*_test.py"}
+test = {shell = "PYTHONPATH=$PWD pytest -s contracts/web3_account_test.py"}
 [tool.poe.tasks.reload_module] 
 shell = """
     yarn --cwd starknet-web3-account build && yarn --cwd client upgrade starknet-web3-account

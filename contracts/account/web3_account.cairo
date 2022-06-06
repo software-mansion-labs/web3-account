@@ -13,8 +13,17 @@ from starkware.cairo.common.math import assert_in_range, assert_not_equal, asser
 from starkware.cairo.common.uint256 import Uint256, uint256_check
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_secp.signature import verify_eth_signature_uint256
+from starkware.cairo.common.cairo_secp.signature import verify_eth_signature_uint256, recover_public_key, public_key_point_to_eth_address
 from starkware.cairo.common.cairo_keccak.keccak import finalize_keccak
+from starkware.cairo.common.cairo_secp.bigint import (
+    BASE,
+    BigInt3,
+    UnreducedBigInt3,
+    bigint_mul,
+    bigint_to_uint256,
+    nondet_bigint3,
+    uint256_to_bigint,
+)
 
 from openzeppelin.account.library import (
     Call,
@@ -22,6 +31,7 @@ from openzeppelin.account.library import (
     Account,
 )
 
+from contracts.account.eip712 import get_hash
 from contracts.account.upgrades import Proxy_get_implementation, Proxy_set_implementation
 
 # Last 160 bits are used for Ethereum address, 80 bits are used for nonce
@@ -187,15 +197,22 @@ func is_valid_signature{
     let r = Uint256(signature[1], signature[2])
     let s = Uint256(signature[3], signature[4])
 
-    let (tx_hash_high, tx_hash_low) = split_felt(hash)
-    let hash_uint = Uint256(tx_hash_low, tx_hash_high)
-
-    let (stored) = get_eth_address()
 
     let (local keccak_ptr_start) = alloc()
     let keccak_ptr = keccak_ptr_start
 
-    verify_eth_signature_uint256{keccak_ptr=keccak_ptr}(hash_uint, r, s, v, stored)
+    let (hash_uint) = get_hash{keccak_ptr=keccak_ptr}(hash, Uint256(1,1))
+
+    let (stored) = get_eth_address()
+
+    let (msg_hash_bigint : BigInt3) = uint256_to_bigint(hash_uint)
+    let (r_bigint : BigInt3) = uint256_to_bigint(r)
+    let (s_bigint : BigInt3) = uint256_to_bigint(s)
+    let (public_key_point) = recover_public_key(msg_hash=msg_hash_bigint, r=r_bigint, s=s_bigint, v=v)
+    let (calculated_eth_address) = public_key_point_to_eth_address{keccak_ptr=keccak_ptr}(
+        public_key_point=public_key_point
+    )
+    #verify_eth_signature_uint256{keccak_ptr=keccak_ptr}(hash_uint, r, s, v, stored)
     finalize_keccak(keccak_ptr_start=keccak_ptr_start, keccak_ptr_end=keccak_ptr)
 
     return ()
