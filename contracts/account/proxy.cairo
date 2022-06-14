@@ -1,7 +1,7 @@
 
 %lang starknet
 
-from starkware.starknet.common.syscalls import delegate_call, get_contract_address
+from starkware.starknet.common.syscalls import delegate_call, delegate_l1_handler, get_contract_address
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from contracts.account.upgrades import Proxy_get_implementation, Proxy_set_implementation
 

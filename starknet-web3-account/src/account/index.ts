@@ -6,12 +6,11 @@ import {
   CompressedCompiledContract,
   ProviderInterface,
 } from 'starknet';
-import { getSelectorFromName } from 'starknet/utils/hash';
-import { BigNumberish, hexToDecimalString } from 'starknet/utils/number';
+import { BigNumberish } from 'starknet/utils/number';
 
 import { MetamaskClient } from '../client';
-import { contractSalt, implementationAddress } from '../config';
-import { EthSigner } from '../signer';
+import { contractSalt } from '../config';
+import { Eip712Signer } from '../signer';
 import { computeStarknetAddress, constructorArguments } from '../utils';
 import contract_deploy_tx from '../web3_account_proxy.json';
 
@@ -27,9 +26,12 @@ export class EthAccount extends Account {
       throw new Error('Provided address is not a valid ethereum address.');
     }
 
-    const starknetAddress = computeStarknetAddress(ethAddress);
+    const starknetAddress = computeStarknetAddress(
+      ethAddress,
+      provider.chainId
+    );
 
-    const signer = new EthSigner(client, ethAddress);
+    const signer = new Eip712Signer(client, ethAddress);
 
     super(provider, starknetAddress, signer);
 
@@ -47,7 +49,7 @@ export class EthAccount extends Account {
     return await this.fetchEndpoint('add_transaction', undefined, {
       type: 'DEPLOY',
       contract_address_salt: contractSalt,
-      constructor_calldata: constructorArguments(this.ethAddress),
+      constructor_calldata: constructorArguments(this.ethAddress, this.chainId),
       contract_definition:
         contract_deploy_tx.contract_definition as CompressedCompiledContract,
     });
