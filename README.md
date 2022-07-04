@@ -1,4 +1,4 @@
-# 🐍 StarknNet web3 account
+# 🐍 StarkNet web3 account
 
 # Development setup
 ## Clone deps with submodules
